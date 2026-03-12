@@ -1,0 +1,142 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 127.0.0.1
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+
+# =============================================================
+# Solar Surplus EV Charging - Template Sensors
+# =============================================================
+template:
+  - sensor:
+      # Surplus power (positive = surplus available for EV)
+      - name: "Solar Surplus Power"
+        unique_id: solar_surplus_power
+        unit_of_measurement: "W"
+        device_class: power
+        state: >
+          {% set grid = states('sensor.epcube_gridpower') | float(0) %}
+          {{ (grid * -1) | round(0) }}
+        availability: >
+          {{ states('sensor.epcube_gridpower') | is_number }}
+
+      # Total available power (surplus + current charging consumption)
+      # Represents: "how much surplus would there be if charging stopped"
+      - name: "Solar Total Available Power"
+        unique_id: solar_total_available_power
+        unit_of_measurement: "W"
+        device_class: power
+        state: >
+          {% set surplus = states('sensor.solar_surplus_power') | float(0) %}
+          {% set charging = states('sensor.tesla_charging_power_w') | float(0) %}
+          {{ (surplus + charging) | round(0) }}
+        availability: >
+          {{ states('sensor.solar_surplus_power') | is_number }}
+
+      # Available charging amps based on total_available (with 400W margin)
+      - name: "Available Charging Amps"
+        unique_id: available_charging_amps
+        unit_of_measurement: "A"
+        state: >
+          {% set total = states('sensor.solar_total_available_power') | float(0) %}
+          {% set voltage = 200 %}
+          {% set amps = ((total - 400) / voltage) | int %}
+          {{ [[amps, 5] | max, 24] | min }}
+        availability: >
+          {{ states('sensor.solar_total_available_power') | is_number }}
+
+      # Actual charging current (0 when not charging)
+      - name: "Tesla Actual Charging Current"
+        unique_id: tesla_actual_charging_current
+        unit_of_measurement: "A"
+        device_class: current
+        state: >
+          {% if is_state('sensor.tesla_ble_charging_state', 'Charging') %}
+            {{ states('sensor.tesla_ble_charge_current') | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+
+      # Charging power in W (state_class for Energy dashboard compatibility)
+      - name: "Tesla Charging Power W"
+        unique_id: tesla_charging_power_w
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set kw = states('sensor.tesla_ble_charge_power') | float(0) %}
+          {{ (kw * 1000) | round(0) }}
+
+  - binary_sensor:
+      - name: "Solar Surplus Charging Available"
+        unique_id: solar_surplus_charging_available
+        state: >
+          {% set surplus = states('sensor.solar_surplus_power') | float(0) %}
+          {% set plugged_in = is_state('binary_sensor.tesla_ble_charge_flap', 'on') %}
+          {% set battery = states('sensor.tesla_ble_charge_level') | float(100) %}
+          {% set charge_limit = states('number.tesla_ble_charging_limit') | float(80) %}
+          {{ surplus >= 1200 and plugged_in and battery < charge_limit }}
+
+# Manual override toggle
+input_boolean:
+  solar_charging_enabled:
+    name: "Solar Surplus Charging Enabled"
+    icon: mdi:solar-power
+
+# =============================================================
+# Solar Surplus EV Charging - Timers
+# =============================================================
+timer:
+  solar_enable_delay:
+    name: "Solar Charging Enable Delay"
+    duration: "00:01:00"
+    icon: mdi:timer-play
+  solar_disable_delay:
+    name: "Solar Charging Disable Delay"
+    duration: "00:03:00"
+    icon: mdi:timer-pause
+  solar_guard:
+    name: "Solar Charging Guard"
+    duration: "00:05:00"
+    icon: mdi:shield-sun
+  solar_stabilize:
+    name: "Solar Charging Stabilize"
+    duration: "00:01:30"
+    icon: mdi:sine-wave
+
+# =============================================================
+# Tesla EV Charging Energy (for Energy dashboard)
+# =============================================================
+sensor:
+  - platform: integration
+    source: sensor.tesla_charging_power_w
+    name: "Tesla EV Charging Energy"
+    unique_id: tesla_ev_charging_energy
+    unit_prefix: k
+    round: 2
+    method: left
+
+# =============================================================
+# Dashboard (YAML mode)
+# =============================================================
+lovelace:
+  mode: storage
+  dashboards:
+    solar-ev-charging:
+      mode: yaml
+      title: EV
+      filename: dashboards/solar-ev-charging.yaml
+      icon: mdi:car-electric
+      show_in_sidebar: true

@@ -1,0 +1,9 @@
+# Secrets
+esphome/secrets.yaml
+
+# macOS
+.DS_Store
+
+# Home Assistant
+homeassistant/.storage/
+homeassistant/*.log

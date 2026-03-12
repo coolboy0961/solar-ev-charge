@@ -1,0 +1,382 @@
+# Solar Surplus EV Charging Automations
+#
+# Algorithm: "Adjust amps frequently, ON/OFF carefully"
+#
+# Control flow:
+#   surplus >= 1200W for 1min → Start at 5A (enable delay)
+#   total_available < 800W for 3min → Stop (disable delay)
+#   Guard timer: 5min minimum between ON/OFF transitions
+#   Stabilize timer: 90s after amp change, 2min after start
+#   Emergency: surplus < -500W for 2min → immediate stop
+#
+# Key concept: total_available = surplus + charging_power_w
+#   "How much surplus would there be if we stopped charging?"
+
+# =============================================================================
+# Main Control Loop: Adjust charging amps based on surplus power (every 30s)
+# =============================================================================
+- id: solar_surplus_adjust_charging
+  alias: "Solar Surplus - Adjust Charging Amps"
+  mode: single
+  trigger:
+    - platform: time_pattern
+      seconds: "/30"
+  condition:
+    - condition: state
+      entity_id: input_boolean.solar_charging_enabled
+      state: "on"
+    - condition: state
+      entity_id: binary_sensor.tesla_ble_charge_flap
+      state: "on"
+    - condition: template
+      value_template: >
+        {{ states('sensor.tesla_ble_charge_level') | float(100)
+           < states('number.tesla_ble_charging_limit') | float(80) }}
+    # Skip if guard timer active (just turned ON/OFF)
+    - condition: template
+      value_template: "{{ is_state('timer.solar_guard', 'idle') }}"
+    # Skip if stabilize timer active (just changed amps)
+    - condition: template
+      value_template: "{{ is_state('timer.solar_stabilize', 'idle') }}"
+  action:
+    - variables:
+        surplus: "{{ states('sensor.solar_surplus_power') | float(0) }}"
+        charging_w: "{{ states('sensor.tesla_charging_power_w') | float(0) }}"
+        total_available: "{{ surplus + charging_w }}"
+        is_charging: "{{ is_state('switch.tesla_ble_charger', 'on') }}"
+        current_amps: "{{ states('number.tesla_ble_charging_amps') | int(0) }}"
+        voltage: 200
+        target: "{{ [[((total_available - 400) / voltage) | int, 5] | max, 24] | min }}"
+    - choose:
+        # === CHARGING: Adjust amps or prepare to stop ===
+        - conditions:
+            - condition: template
+              value_template: "{{ is_charging }}"
+          sequence:
+            - choose:
+                # REDUCE: surplus went negative, proportionally reduce amps
+                - conditions:
+                    - condition: template
+                      value_template: "{{ surplus < -100 and current_amps > 5 }}"
+                  sequence:
+                    - variables:
+                        reduce_by: "{{ [((-1 * surplus) / voltage) | int + 1, current_amps - 5] | min }}"
+                        new_amps: "{{ [current_amps - reduce_by, 5] | max }}"
+                    - service: number.set_value
+                      target:
+                        entity_id: number.tesla_ble_charging_amps
+                      data:
+                        value: "{{ new_amps }}"
+                    - service: timer.start
+                      target:
+                        entity_id: timer.solar_stabilize
+                      data:
+                        duration: "00:01:30"
+                    - service: system_log.write
+                      data:
+                        message: "Solar charging REDUCE: {{ current_amps }}A → {{ new_amps }}A (surplus={{ surplus }}W)"
+                        level: info
+
+                # LOW TOTAL: Start disable delay timer
+                - conditions:
+                    - condition: template
+                      value_template: "{{ total_available < 800 }}"
+                  sequence:
+                    - if:
+                        - condition: state
+                          entity_id: timer.solar_disable_delay
+                          state: "idle"
+                      then:
+                        - service: timer.start
+                          target:
+                            entity_id: timer.solar_disable_delay
+                        - service: system_log.write
+                          data:
+                            message: "Solar charging disable delay started (total_available={{ total_available }}W)"
+                            level: info
+
+              # DEFAULT: Sufficient surplus, cancel disable timer and adjust amps
+              default:
+                # Cancel disable timer if running (surplus recovered)
+                - if:
+                    - condition: template
+                      value_template: "{{ not is_state('timer.solar_disable_delay', 'idle') }}"
+                  then:
+                    - service: timer.cancel
+                      target:
+                        entity_id: timer.solar_disable_delay
+                    - service: system_log.write
+                      data:
+                        message: "Solar charging disable delay cancelled (total_available={{ total_available }}W)"
+                        level: info
+                # Ramp UP: limit +2A per cycle
+                - if:
+                    - condition: template
+                      value_template: "{{ target | int > current_amps }}"
+                  then:
+                    - variables:
+                        new_amps: "{{ [target | int, current_amps + 2] | min }}"
+                    - service: number.set_value
+                      target:
+                        entity_id: number.tesla_ble_charging_amps
+                      data:
+                        value: "{{ new_amps }}"
+                    - service: timer.start
+                      target:
+                        entity_id: timer.solar_stabilize
+                      data:
+                        duration: "00:01:30"
+                    - service: system_log.write
+                      data:
+                        message: "Solar charging RAMP UP: {{ current_amps }}A → {{ new_amps }}A (total_available={{ total_available }}W)"
+                        level: info
+                # Ramp DOWN: only if diff >= 3A (deadband)
+                - if:
+                    - condition: template
+                      value_template: "{{ current_amps - (target | int) >= 3 }}"
+                  then:
+                    - service: number.set_value
+                      target:
+                        entity_id: number.tesla_ble_charging_amps
+                      data:
+                        value: "{{ target }}"
+                    - service: timer.start
+                      target:
+                        entity_id: timer.solar_stabilize
+                      data:
+                        duration: "00:01:30"
+                    - service: system_log.write
+                      data:
+                        message: "Solar charging RAMP DOWN: {{ current_amps }}A → {{ target }}A (total_available={{ total_available }}W)"
+                        level: info
+
+        # === NOT CHARGING: Check if we should start ===
+        - conditions:
+            - condition: template
+              value_template: "{{ not is_charging }}"
+          sequence:
+            - choose:
+                # Surplus high enough to consider starting
+                - conditions:
+                    - condition: template
+                      value_template: "{{ surplus >= 1200 }}"
+                  sequence:
+                    - if:
+                        - condition: state
+                          entity_id: timer.solar_enable_delay
+                          state: "idle"
+                      then:
+                        - service: timer.start
+                          target:
+                            entity_id: timer.solar_enable_delay
+                        - service: system_log.write
+                          data:
+                            message: "Solar charging enable delay started (surplus={{ surplus }}W)"
+                            level: info
+              # Surplus dropped below threshold, cancel enable timer
+              default:
+                - if:
+                    - condition: template
+                      value_template: "{{ not is_state('timer.solar_enable_delay', 'idle') }}"
+                  then:
+                    - service: timer.cancel
+                      target:
+                        entity_id: timer.solar_enable_delay
+                    - service: system_log.write
+                      data:
+                        message: "Solar charging enable delay cancelled (surplus={{ surplus }}W)"
+                        level: info
+
+# =============================================================================
+# Enable Delay Expired: Start charging at 5A
+# =============================================================================
+- id: solar_surplus_start_charging
+  alias: "Solar Surplus - Start Charging (Enable Delay Expired)"
+  mode: single
+  trigger:
+    - platform: event
+      event_type: timer.finished
+      event_data:
+        entity_id: timer.solar_enable_delay
+  condition:
+    - condition: state
+      entity_id: input_boolean.solar_charging_enabled
+      state: "on"
+    - condition: state
+      entity_id: binary_sensor.tesla_ble_charge_flap
+      state: "on"
+    - condition: template
+      value_template: >
+        {{ states('sensor.tesla_ble_charge_level') | float(100)
+           < states('number.tesla_ble_charging_limit') | float(80) }}
+    # Re-check surplus is still sufficient
+    - condition: numeric_state
+      entity_id: sensor.solar_surplus_power
+      above: 1000
+    # Guard must be idle
+    - condition: state
+      entity_id: timer.solar_guard
+      state: "idle"
+  action:
+    - service: number.set_value
+      target:
+        entity_id: number.tesla_ble_charging_amps
+      data:
+        value: 5
+    - delay:
+        seconds: 2
+    - service: switch.turn_on
+      target:
+        entity_id: switch.tesla_ble_charger
+    - service: timer.start
+      target:
+        entity_id: timer.solar_guard
+    - service: timer.start
+      target:
+        entity_id: timer.solar_stabilize
+      data:
+        duration: "00:02:00"
+    - service: system_log.write
+      data:
+        message: >
+          Solar charging STARTED at 5A
+          (surplus={{ states('sensor.solar_surplus_power') }}W)
+        level: info
+
+# =============================================================================
+# Disable Delay Expired: Stop charging
+# =============================================================================
+- id: solar_surplus_stop_charging
+  alias: "Solar Surplus - Stop Charging (Disable Delay Expired)"
+  mode: single
+  trigger:
+    - platform: event
+      event_type: timer.finished
+      event_data:
+        entity_id: timer.solar_disable_delay
+  condition:
+    - condition: state
+      entity_id: switch.tesla_ble_charger
+      state: "on"
+    # Guard must be idle
+    - condition: state
+      entity_id: timer.solar_guard
+      state: "idle"
+  action:
+    - service: switch.turn_off
+      target:
+        entity_id: switch.tesla_ble_charger
+    - service: timer.start
+      target:
+        entity_id: timer.solar_guard
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_stabilize
+    - service: system_log.write
+      data:
+        message: >
+          Solar charging STOPPED (disable delay expired,
+          total_available={{ states('sensor.solar_total_available_power') }}W)
+        level: info
+
+# =============================================================================
+# Safety: Emergency stop when grid import exceeds threshold
+# =============================================================================
+- id: solar_surplus_stop_on_grid_import
+  alias: "Solar Surplus - Emergency Stop on Grid Import"
+  mode: single
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.solar_surplus_power
+      below: -500
+      for:
+        minutes: 2
+  condition:
+    - condition: state
+      entity_id: switch.tesla_ble_charger
+      state: "on"
+  action:
+    - service: switch.turn_off
+      target:
+        entity_id: switch.tesla_ble_charger
+    - service: timer.start
+      target:
+        entity_id: timer.solar_guard
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_enable_delay
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_disable_delay
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_stabilize
+    - service: persistent_notification.create
+      data:
+        title: "Solar Charging Emergency Stop"
+        message: >
+          Grid import exceeded 500W for 2 minutes.
+          Surplus: {{ states('sensor.solar_surplus_power') }}W
+    - service: system_log.write
+      data:
+        message: >
+          Solar charging EMERGENCY STOP
+          (surplus={{ states('sensor.solar_surplus_power') }}W for 2min)
+        level: warning
+
+# =============================================================================
+# Notification: Charging complete
+# =============================================================================
+- id: solar_surplus_charging_complete
+  alias: "Solar Surplus - Charging Complete"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: sensor.tesla_ble_charging_state
+      to: "Complete"
+  action:
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_enable_delay
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_disable_delay
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_stabilize
+    - service: persistent_notification.create
+      data:
+        title: "Tesla Charging Complete"
+        message: "Battery: {{ states('sensor.tesla_ble_charge_level') }}%"
+
+# =============================================================================
+# Manual override: Stop charging when solar charging is disabled
+# =============================================================================
+- id: solar_surplus_manual_disable
+  alias: "Solar Surplus - Manual Disable"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: input_boolean.solar_charging_enabled
+      to: "off"
+  action:
+    - if:
+        - condition: state
+          entity_id: switch.tesla_ble_charger
+          state: "on"
+      then:
+        - service: switch.turn_off
+          target:
+            entity_id: switch.tesla_ble_charger
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_enable_delay
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_disable_delay
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_guard
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_stabilize

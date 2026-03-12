@@ -1,0 +1,168 @@
+# Solar EV Charging Dashboard
+# Setup: Settings > Dashboards > Add Dashboard > select "Use YAML"
+#        set filename to dashboards/solar-ev-charging.yaml
+
+title: EV
+views:
+  # ==========================================================================
+  # Main View: Overview
+  # ==========================================================================
+  - title: Overview
+    path: overview
+    icon: mdi:solar-power
+    cards:
+      # --- Power Flow (real-time with Tesla Model 3) ---
+      - type: custom:power-flow-card-plus
+        entities:
+          solar:
+            entity: sensor.epcube_solarpower
+            display_zero_state: true
+          grid:
+            entity: sensor.epcube_gridpower
+            color:
+              consumption:
+                - 100
+                - 180
+                - 255
+              production:
+                - 180
+                - 130
+                - 255
+          battery:
+            entity: sensor.epcube_battery_power
+            state_of_charge: sensor.epcube_batterysoc
+            invert_state: true
+          home:
+            entity: sensor.epcube_backuppower
+            override_state: true
+          individual:
+            - entity: sensor.tesla_charging_power_w
+              name: Tesla
+              icon: mdi:car-electric
+              display_zero: true
+        w_decimals: 0
+
+      # --- Solar Charging Control ---
+      - type: entities
+        title: Solar Charging Control
+        entities:
+          - entity: input_boolean.solar_charging_enabled
+            name: Solar Charging
+          - entity: binary_sensor.solar_surplus_charging_available
+            name: Surplus Available
+          - entity: sensor.solar_surplus_power
+            name: Surplus Power
+          - entity: sensor.solar_total_available_power
+            name: Total Available
+          - entity: sensor.available_charging_amps
+            name: Available Amps
+
+      # --- Tesla Vehicle Status ---
+      - type: entities
+        title: Tesla Model 3
+        entities:
+          - entity: sensor.tesla_ble_charge_level
+            name: Battery Level
+          - entity: sensor.tesla_ble_charging_state
+            name: Charging State
+          - entity: binary_sensor.tesla_ble_charge_flap
+            name: Plugged In
+          - entity: sensor.tesla_actual_charging_current
+            name: Charging Current (A)
+          - entity: sensor.tesla_ble_charge_power
+            name: Charging Power (kW)
+          - entity: number.tesla_ble_charging_amps
+            name: Set Charging Amps
+          - entity: number.tesla_ble_charging_limit
+            name: Charge Limit
+          - entity: switch.tesla_ble_charger
+            name: Charging Switch
+
+
+  # ==========================================================================
+  # History View: Graphs
+  # ==========================================================================
+  - title: History
+    path: history
+    icon: mdi:chart-line
+    cards:
+      # --- Power History (today) ---
+      - type: history-graph
+        title: Power Flow (Today)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.epcube_solarpower
+            name: Solar
+          - entity: sensor.solar_surplus_power
+            name: Surplus
+          - entity: sensor.solar_total_available_power
+            name: Total Available
+          - entity: sensor.tesla_charging_power_w
+            name: EV Charging
+          - entity: sensor.epcube_gridpower
+            name: Grid
+
+      # --- Battery Levels ---
+      - type: history-graph
+        title: Battery Levels
+        hours_to_show: 24
+        entities:
+          - entity: sensor.tesla_ble_charge_level
+            name: Tesla Battery
+          - entity: sensor.epcube_batterysoc
+            name: EP Cube Battery
+
+      # --- Charging Current ---
+      - type: history-graph
+        title: Charging Current
+        hours_to_show: 24
+        entities:
+          - entity: sensor.tesla_actual_charging_current
+            name: Actual Current
+          - entity: sensor.available_charging_amps
+            name: Available Amps
+
+  # ==========================================================================
+  # System View: Diagnostics
+  # ==========================================================================
+  - title: System
+    path: system
+    icon: mdi:cog
+    cards:
+      - type: entities
+        title: ESP32 Diagnostics
+        entities:
+          - entity: sensor.tesla_ble_wifi_signal
+            name: WiFi Signal
+          - entity: sensor.tesla_ble_uptime
+            name: Uptime
+          - entity: binary_sensor.tesla_ble_asleep
+            name: Vehicle Asleep
+          - entity: binary_sensor.tesla_ble_user_presence
+            name: User Present
+          - entity: sensor.tesla_ble_ble_signal
+            name: BLE Signal
+          - entity: sensor.tesla_ble_ip_address
+            name: IP Address
+
+      - type: entities
+        title: Charging Timers
+        entities:
+          - entity: timer.solar_enable_delay
+            name: Enable Delay (1min)
+          - entity: timer.solar_disable_delay
+            name: Disable Delay (3min)
+          - entity: timer.solar_guard
+            name: Guard (5min)
+          - entity: timer.solar_stabilize
+            name: Stabilize (90s)
+
+      - type: entities
+        title: Automations
+        entities:
+          - entity: automation.solar_surplus_adjust_charging_amps
+          - entity: automation.solar_surplus_start_charging_enable_delay_expired
+          - entity: automation.solar_surplus_stop_charging_disable_delay_expired
+          - entity: automation.solar_surplus_stop_on_grid_import
+          - entity: automation.solar_surplus_charging_complete
+          - entity: automation.solar_surplus_manual_disable

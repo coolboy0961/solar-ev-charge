@@ -1,0 +1,17 @@
+# Home Assistant - Portainer Stack on Synology NAS
+# Deploy: Portainer > Stacks > Add Stack > paste this YAML
+#
+# Port 8123 will be available at http://<NAS_IP>:8123
+
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    volumes:
+      - /volume1/docker/homeassistant:/config
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - TZ=Asia/Tokyo

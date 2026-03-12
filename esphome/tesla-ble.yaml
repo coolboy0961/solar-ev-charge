@@ -1,0 +1,67 @@
+# ESPHome Tesla BLE Configuration
+# Board: M5Stack NanoC6 (ESP32-C6)
+# Based on: https://github.com/PedroKTFC/esphome-tesla-ble
+
+substitutions:
+  device_name: tesla-ble
+  friendly_name: "Tesla BLE"
+  ble_mac_address: !secret tesla_ble_mac
+  tesla_vin: !secret tesla_vin
+  charging_amps_max: "24"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+
+# WiFi
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  use_address: 192.168.0.2
+  ap:
+    ssid: "${friendly_name} Fallback"
+    password: !secret ota_password
+
+# ESPHome Native API (Home Assistant connection)
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+# OTA updates
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+# Logging
+logger:
+  level: INFO
+
+# -----------------------------------------------------------------
+# PedroKTFC fork packages (base, common, project, client)
+# -----------------------------------------------------------------
+packages:
+  remote_package_files:
+    url: https://github.com/PedroKTFC/esphome-tesla-ble/
+    path: packages
+    files: [base.yml, project.yml, client.yml]
+  board:
+    url: https://github.com/PedroKTFC/esphome-tesla-ble/
+    path: boards
+    files: [m5stack-nanoc6.yml]
+
+# common.yml replacement (original has incompatible wifi_info id field)
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+    ssid:
+      name: "WiFi SSID"
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+
+  - platform: uptime
+    name: "Uptime"

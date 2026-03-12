@@ -13,6 +13,8 @@ URL: http://<NAS_IP>:8123/solar-ev-charging/overview
 
 日常的に確認・操作するメイン画面。3つのカードで構成される。
 
+<img src="images/ev-dashboard-overview.jpg" width="300" alt="Overview - Power Flow と Solar Charging Control">
+
 ### Power Flow Card (power-flow-card-plus)
 
 リアルタイムの電力フロー図。Solar、Grid、Battery、Home、Teslaの5つの要素間の電力の流れをアニメーション付きで表示する。
@@ -102,6 +104,8 @@ URL: http://<NAS_IP>:8123/solar-ev-charging/overview
 ## History (履歴ビュー)
 
 過去24時間のグラフ表示。充電の効果確認や太陽光パターンの把握に使用。
+
+<img src="images/ev-dashboard-history.jpg" width="300" alt="History - Battery Levels と Charging Current">
 
 ### Power Flow (Today) グラフ
 
@@ -213,3 +217,40 @@ ESP32の診断情報と自動化ルールの管理。
 1. System ビューで WiFi Signal と BLE Signal を確認
 2. Vehicle Asleep が ON の場合、Developer Tools > Services で `button.press` → `button.tesla_ble_wake_up` で起こす
 3. それでも改善しない場合、ESPHome Dashboard から ESP32 を再起動
+
+---
+
+## 参考: Home Assistant エネルギーダッシュボード
+
+Home Assistant 標準のエネルギーダッシュボードでは、太陽光発電・蓄電池・系統電力・EV充電の全体像を日単位で確認できる。
+
+### Energy Distribution (エネルギー分配)
+
+Solar、Grid、Battery、Home の間のエネルギーフロー (kWh) を視覚化。
+
+<img src="images/ha-energy-distribution.jpg" width="300" alt="Energy Distribution - エネルギー分配図">
+
+### Sources & Power Sources (電力ソース)
+
+ソース別の発電・消費量サマリーと、時系列の電力推移グラフ。
+
+<img src="images/ha-energy-sources.jpg" width="300" alt="Sources - ソース別サマリーと電力推移">
+<img src="images/ha-energy-power-sources.jpg" width="300" alt="Power Sources - 電力推移と消費量グラフ">
+
+### Electricity タブ (自給率・自家消費率)
+
+系統への売電量、太陽光の自家消費率、自給率をゲージで表示。
+
+<img src="images/ha-energy-electricity.jpg" width="300" alt="Electricity - 自給率と自家消費率">
+
+### Solar Production (太陽光発電量)
+
+時間帯別の太陽光発電量とソース別エネルギー内訳。
+
+<img src="images/ha-energy-solar-production.jpg" width="300" alt="Solar Production - 太陽光発電量グラフ">
+
+### Device Usage (デバイス別消費)
+
+Tesla Model 3 の充電消費を含むデバイス別の電力消費内訳。
+
+<img src="images/ha-energy-device-usage.jpg" width="300" alt="Device Usage - デバイス別消費">

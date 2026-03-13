@@ -13,6 +13,66 @@
 #   "How much surplus would there be if we stopped charging?"
 
 # =============================================================================
+# EP Cube Auto-Refresh: Force update when data becomes stale
+# =============================================================================
+- id: epcube_auto_refresh
+  alias: "EP Cube - Auto Refresh Stale Data"
+  mode: single
+  trigger:
+    - platform: time_pattern
+      minutes: "/1"
+  condition:
+    # Any critical sensor stale for >5min triggers refresh
+    - condition: template
+      value_template: >
+        {% set sensors = [
+          states.sensor.epcube_gridpower,
+          states.sensor.epcube_battery_power,
+          states.sensor.epcube_batterysoc,
+          states.sensor.epcube_backuppower,
+          states.sensor.epcube_solarpower
+        ] %}
+        {{ sensors | map(attribute='last_updated')
+           | map('as_timestamp')
+           | map('int')
+           | min < (now() | as_timestamp | int) - 300 }}
+  action:
+    # Step 1: Try update_entity first (no unavailable state)
+    - service: homeassistant.update_entity
+      target:
+        entity_id:
+          - sensor.epcube_solarpower
+          - sensor.epcube_gridpower
+          - sensor.epcube_battery_power
+          - sensor.epcube_batterysoc
+          - sensor.epcube_backuppower
+    - delay:
+        seconds: 10
+    # Step 2: If still stale, reload the integration
+    - if:
+        - condition: template
+          value_template: >
+            {% set sensors = [
+              states.sensor.epcube_gridpower,
+              states.sensor.epcube_battery_power,
+              states.sensor.epcube_batterysoc,
+              states.sensor.epcube_backuppower,
+              states.sensor.epcube_solarpower
+            ] %}
+            {{ sensors | map(attribute='last_updated')
+               | map('as_timestamp')
+               | map('int')
+               | min < (now() | as_timestamp | int) - 300 }}
+      then:
+        - service: homeassistant.reload_config_entry
+          data:
+            entry_id: "01KK93VZ3G9P7SMV6JXBFCP45C"
+        - service: system_log.write
+          data:
+            message: "EP Cube integration reloaded due to stale data (gridpower last updated {{ states.sensor.epcube_gridpower.last_updated }})"
+            level: warning
+
+# =============================================================================
 # Main Control Loop: Adjust charging amps based on surplus power (every 30s)
 # =============================================================================
 - id: solar_surplus_adjust_charging
@@ -32,6 +92,19 @@
       value_template: >
         {{ states('sensor.tesla_ble_charge_level') | float(100)
            < states('number.tesla_ble_charging_limit') | float(80) }}
+    # Skip if any EP Cube critical sensor is stale (>10min old)
+    - condition: template
+      value_template: >
+        {% set sensors = [
+          states.sensor.epcube_gridpower,
+          states.sensor.epcube_battery_power,
+          states.sensor.epcube_batterysoc,
+          states.sensor.epcube_backuppower
+        ] %}
+        {{ sensors | map(attribute='last_updated')
+           | map('as_timestamp')
+           | map('int')
+           | min > (now() | as_timestamp | int) - 600 }}
     # Skip if guard timer active (just turned ON/OFF)
     - condition: template
       value_template: "{{ is_state('timer.solar_guard', 'idle') }}"

@@ -40,6 +40,12 @@ views:
               name: Tesla
               icon: mdi:car-electric
               display_zero: true
+              secondary_info:
+                entity: sensor.tesla_ble_charge_level
+                unit_of_measurement: "%"
+                unit_white_space: false
+                decimals: 0
+                display_zero: true
         w_decimals: 0
 
       # --- Solar Charging Control ---

@@ -13,6 +13,7 @@ views:
     cards:
       # --- Power Flow (real-time with Tesla Model 3) ---
       - type: custom:power-flow-card-plus
+        title: Solar EV System
         entities:
           solar:
             entity: sensor.epcube_solarpower
@@ -35,6 +36,7 @@ views:
           home:
             entity: sensor.epcube_backuppower
             override_state: true
+            name: Home
           individual:
             - entity: sensor.tesla_charging_power_w
               name: Tesla

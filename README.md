@@ -50,12 +50,15 @@ solar-ev-charge/
 ### Phase 2: EP Cube統合 (HACS)
 
 1. HACSをインストール: Settings > Add-ons > HACS
-2. HACS > Integrations > `+` > `EP Cube` を検索してインストール
-3. Settings > Devices & Services > Add Integration > EP Cube
-4. EP Cubeアプリの認証情報を入力:
+2. HACS > Integrations > 右上メニュー > **Custom repositories**
+3. URLに `https://github.com/Bobsilvio/epcube`、カテゴリに `Integration` を指定して追加
+4. HACS > Integrations > `EP Cube` を検索してインストール
+5. Home Assistantを**再起動**
+6. Settings > Devices & Services > Add Integration > EP Cube
+7. EP Cubeアプリの認証情報を入力:
    - Email/Password
    - Endpoint: `https://monitoring-jp.epcube.com/api`
-5. `sensor.epcube_solarpower`, `sensor.epcube_gridpower` 等が表示されるか確認
+8. `sensor.epcube_solarpower`, `sensor.epcube_gridpower` 等が表示されるか確認
 
 ### Phase 3: ESPHome Tesla BLE (ESP32)
 

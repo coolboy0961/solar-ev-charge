@@ -30,9 +30,8 @@ views:
                 - 130
                 - 255
           battery:
-            entity: sensor.epcube_battery_power
+            entity: sensor.ep_cube_battery_power_balanced
             state_of_charge: sensor.epcube_batterysoc
-            invert_state: true
           home:
             entity: sensor.epcube_backuppower
             override_state: true
@@ -47,7 +46,7 @@ views:
                 unit_of_measurement: "%"
                 unit_white_space: false
                 decimals: 0
-                display_zero: true
+                display_zero: false
         w_decimals: 0
 
       # --- Solar Charging Control ---
@@ -168,7 +167,7 @@ views:
       - type: entities
         title: Automations
         entities:
-          - entity: automation.epcube_auto_refresh
+          - entity: automation.ep_cube_auto_refresh_stale_data
           - entity: automation.solar_surplus_adjust_charging_amps
           - entity: automation.solar_surplus_start_charging_enable_delay_expired
           - entity: automation.solar_surplus_stop_charging_disable_delay_expired

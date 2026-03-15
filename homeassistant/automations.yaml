@@ -435,29 +435,26 @@
   mode: single
   trigger:
     - platform: state
-      entity_id: binary_sensor.tesla_ble_charge_flap
+      entity_id: switch.tesla_ble_charger
       to: "on"
   condition:
     - condition: state
       entity_id: input_boolean.solar_charging_enabled
       state: "on"
+    # Only guard if this was NOT triggered by our own start-charging automation
+    - condition: state
+      entity_id: timer.solar_guard
+      state: "idle"
   action:
-    - delay:
-        seconds: 5
-    - if:
-        - condition: state
-          entity_id: switch.tesla_ble_charger
-          state: "on"
-      then:
-        - service: switch.turn_off
-          target:
-            entity_id: switch.tesla_ble_charger
-        - service: timer.start
-          target:
-            entity_id: timer.solar_guard
-        - service: system_log.write
-          data:
-            message: >
-              Solar charging GUARD: charger turned off on cable plug-in,
-              waiting for surplus (solar_charging_enabled=on)
-            level: info
+    - service: switch.turn_off
+      target:
+        entity_id: switch.tesla_ble_charger
+    - service: timer.start
+      target:
+        entity_id: timer.solar_guard
+    - service: system_log.write
+      data:
+        message: >
+          Solar charging GUARD: charger turned off on cable plug-in,
+          waiting for surplus (solar_charging_enabled=on)
+        level: info

@@ -174,3 +174,4 @@ views:
           - entity: automation.solar_surplus_stop_on_grid_import
           - entity: automation.solar_surplus_charging_complete
           - entity: automation.solar_surplus_manual_disable
+          - entity: automation.solar_surplus_cable_plugged_guard

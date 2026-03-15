@@ -7,6 +7,7 @@
 #   total_available < 800W for 3min → Stop (disable delay)
 #   Guard timer: 5min minimum between ON/OFF transitions
 #   Stabilize timer: 90s after amp change, 2min after start
+#   Cable plugged in + solar mode ON → charger OFF (wait for surplus)
 #   Emergency: surplus < -500W for 2min → immediate stop
 #
 # Key concept: total_available = surplus + charging_power_w
@@ -425,3 +426,38 @@
     - service: timer.cancel
       target:
         entity_id: timer.solar_stabilize
+
+# =============================================================================
+# Cable plugged in while solar mode: Turn off charger to wait for surplus
+# =============================================================================
+- id: solar_surplus_cable_plugged_guard
+  alias: "Solar Surplus - Cable Plugged Guard"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.tesla_ble_charge_flap
+      to: "on"
+  condition:
+    - condition: state
+      entity_id: input_boolean.solar_charging_enabled
+      state: "on"
+  action:
+    - delay:
+        seconds: 5
+    - if:
+        - condition: state
+          entity_id: switch.tesla_ble_charger
+          state: "on"
+      then:
+        - service: switch.turn_off
+          target:
+            entity_id: switch.tesla_ble_charger
+        - service: timer.start
+          target:
+            entity_id: timer.solar_guard
+        - service: system_log.write
+          data:
+            message: >
+              Solar charging GUARD: charger turned off on cable plug-in,
+              waiting for surplus (solar_charging_enabled=on)
+            level: info

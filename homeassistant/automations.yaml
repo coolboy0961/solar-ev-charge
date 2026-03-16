@@ -6,7 +6,7 @@
 #   surplus >= 1200W for 1min → Start at 5A (enable delay)
 #   solarpower < 800W for 3min → Stop (disable delay)
 #   Guard timer: 5min minimum between ON/OFF transitions
-#   Stabilize timer: 90s after amp change, 2min after start
+#   Stabilize timer: 45s after amp change, 1min after start
 #   Cable plugged in + solar mode ON → charger OFF (wait for surplus)
 #   Emergency: surplus < -500W for 2min → immediate stop
 #
@@ -117,7 +117,7 @@
                       target:
                         entity_id: timer.solar_stabilize
                       data:
-                        duration: "00:01:30"
+                        duration: "00:00:45"
                     - service: system_log.write
                       data:
                         message: "Solar charging REDUCE: {{ current_amps }}A → {{ new_amps }}A (surplus={{ surplus }}W)"
@@ -157,26 +157,24 @@
                       data:
                         message: "Solar charging disable delay cancelled (total_available={{ total_available }}W)"
                         level: info
-                # Ramp UP: limit +2A per cycle
+                # Ramp UP: jump straight to target
                 - if:
                     - condition: template
                       value_template: "{{ target | int > current_amps }}"
                   then:
-                    - variables:
-                        new_amps: "{{ [target | int, current_amps + 2] | min }}"
                     - service: number.set_value
                       target:
                         entity_id: number.tesla_ble_charging_amps
                       data:
-                        value: "{{ new_amps }}"
+                        value: "{{ target }}"
                     - service: timer.start
                       target:
                         entity_id: timer.solar_stabilize
                       data:
-                        duration: "00:01:30"
+                        duration: "00:00:45"
                     - service: system_log.write
                       data:
-                        message: "Solar charging RAMP UP: {{ current_amps }}A → {{ new_amps }}A (total_available={{ total_available }}W)"
+                        message: "Solar charging RAMP UP: {{ current_amps }}A → {{ target }}A (total_available={{ total_available }}W)"
                         level: info
                 # Ramp DOWN: only if diff >= 3A (deadband)
                 - if:
@@ -192,7 +190,7 @@
                       target:
                         entity_id: timer.solar_stabilize
                       data:
-                        duration: "00:01:30"
+                        duration: "00:00:45"
                     - service: system_log.write
                       data:
                         message: "Solar charging RAMP DOWN: {{ current_amps }}A → {{ target }}A (total_available={{ total_available }}W)"
@@ -283,7 +281,7 @@
       target:
         entity_id: timer.solar_stabilize
       data:
-        duration: "00:02:00"
+        duration: "00:01:00"
     - service: system_log.write
       data:
         message: >

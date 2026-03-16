@@ -47,7 +47,7 @@ views:
                 unit_white_space: false
                 decimals: 0
                 display_zero: false
-        w_decimals: 0
+        w_decimals: 1
 
       # --- Solar Charging Control ---
       - type: entities
@@ -171,6 +171,7 @@ views:
           - entity: automation.solar_surplus_adjust_charging_amps
           - entity: automation.solar_surplus_start_charging_enable_delay_expired
           - entity: automation.solar_surplus_stop_charging_disable_delay_expired
+          - entity: automation.solar_surplus_stop_on_low_solar_production
           - entity: automation.solar_surplus_stop_on_grid_import
           - entity: automation.solar_surplus_charging_complete
           - entity: automation.solar_surplus_manual_disable

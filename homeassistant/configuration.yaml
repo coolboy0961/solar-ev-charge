@@ -85,15 +85,16 @@ template:
              and states('sensor.epcube_gridpower') | is_number
              and states('sensor.epcube_solarpower') | is_number }}
 
-      # Charging power in W (state_class for Energy dashboard compatibility)
+      # Charging power in W (V×A calculation — tesla_ble_charge_power is integer-only)
       - name: "Tesla Charging Power W"
         unique_id: tesla_charging_power_w
         unit_of_measurement: "W"
         device_class: power
         state_class: measurement
         state: >
-          {% set kw = states('sensor.tesla_ble_charge_power') | float(0) %}
-          {{ (kw * 1000) | round(0) }}
+          {% set v = states('sensor.tesla_ble_charge_voltage') | float(0) %}
+          {% set a = states('sensor.tesla_ble_charge_current') | float(0) %}
+          {{ (v * a) | round(0) }}
 
   - binary_sensor:
       - name: "Solar Surplus Charging Available"

@@ -4,7 +4,7 @@
 #
 # Control flow:
 #   surplus >= 1200W for 1min → Start at 5A (enable delay)
-#   total_available < 800W for 3min → Stop (disable delay)
+#   solarpower < 800W for 3min → Stop (disable delay)
 #   Guard timer: 5min minimum between ON/OFF transitions
 #   Stabilize timer: 90s after amp change, 2min after start
 #   Cable plugged in + solar mode ON → charger OFF (wait for surplus)
@@ -123,10 +123,12 @@
                         message: "Solar charging REDUCE: {{ current_amps }}A → {{ new_amps }}A (surplus={{ surplus }}W)"
                         level: info
 
-                # LOW TOTAL: Start disable delay timer
+                # LOW SOLAR: Start disable delay timer
+                # Direct solar check (catches battery compensation by EP Cube)
                 - conditions:
                     - condition: template
-                      value_template: "{{ total_available < 800 }}"
+                      value_template: >
+                        {{ states('sensor.epcube_solarpower') | float(0) < 800 }}
                   sequence:
                     - if:
                         - condition: state
@@ -324,6 +326,45 @@
           Solar charging STOPPED (disable delay expired,
           total_available={{ states('sensor.solar_total_available_power') }}W)
         level: info
+
+# =============================================================================
+# Safety: Stop when solar production too low (catches battery compensation)
+# =============================================================================
+- id: solar_surplus_stop_on_low_solar
+  alias: "Solar Surplus - Stop on Low Solar Production"
+  mode: single
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.epcube_solarpower
+      below: 800
+      for:
+        minutes: 3
+  condition:
+    - condition: state
+      entity_id: switch.tesla_ble_charger
+      state: "on"
+  action:
+    - service: switch.turn_off
+      target:
+        entity_id: switch.tesla_ble_charger
+    - service: timer.start
+      target:
+        entity_id: timer.solar_guard
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_enable_delay
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_disable_delay
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_stabilize
+    - service: system_log.write
+      data:
+        message: >
+          Solar charging STOPPED - low solar production
+          (solarpower={{ states('sensor.epcube_solarpower') }}W < 800W for 3min)
+        level: warning
 
 # =============================================================================
 # Safety: Emergency stop when grid import exceeds threshold

@@ -15,38 +15,6 @@
 #   Stop/adjust: solarpower — avoids EP Cube battery compensation masking deficit
 
 # =============================================================================
-# EP Cube: Reload integration if sensors stale >3min (safety net)
-# =============================================================================
-- id: epcube_auto_refresh
-  alias: "EP Cube - Reload on Persistent Stale Data"
-  mode: single
-  trigger:
-    - platform: time_pattern
-      minutes: "/3"
-  condition:
-    - condition: template
-      value_template: >
-        {% set sensors = [
-          states.sensor.epcube_gridpower,
-          states.sensor.epcube_battery_power,
-          states.sensor.epcube_batterysoc,
-          states.sensor.epcube_backuppower,
-          states.sensor.epcube_solarpower
-        ] %}
-        {{ sensors | map(attribute='last_updated')
-           | map('as_timestamp')
-           | map('int')
-           | min < (now() | as_timestamp | int) - 180 }}
-  action:
-    - service: homeassistant.reload_config_entry
-      data:
-        entry_id: "01KK93VZ3G9P7SMV6JXBFCP45C"
-    - service: system_log.write
-      data:
-        message: "EP Cube integration reloaded - sensors stale >3min despite proactive refresh (gridpower last updated {{ states.sensor.epcube_gridpower.last_updated }})"
-        level: warning
-
-# =============================================================================
 # Main Control Loop: Adjust charging amps based on surplus power (every 30s)
 # =============================================================================
 - id: solar_surplus_adjust_charging
@@ -66,14 +34,13 @@
       value_template: >
         {{ states('sensor.tesla_ble_charge_level') | float(100)
            < states('number.tesla_ble_charging_limit') | float(80) }}
-    # Skip if any EP Cube critical sensor is stale (>3min old)
+    # Skip if any critical sensor is stale (>3min old)
     - condition: template
       value_template: >
         {% set sensors = [
-          states.sensor.epcube_gridpower,
-          states.sensor.epcube_battery_power,
-          states.sensor.epcube_batterysoc,
-          states.sensor.epcube_backuppower
+          states.sensor.nature_remo_sumatometa_current_power,
+          states.sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy,
+          states.sensor.ep_cube_remaining_stored_electricity_3
         ] %}
         {{ sensors | map(attribute='last_updated')
            | map('as_timestamp')
@@ -88,7 +55,7 @@
   action:
     - variables:
         surplus: "{{ states('sensor.solar_surplus_power') | float(0) }}"
-        solarpower: "{{ states('sensor.epcube_solarpower') | float(0) }}"
+        solarpower: "{{ states('sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated') | float(0) }}"
         is_charging: "{{ is_state('switch.tesla_ble_charger', 'on') }}"
         current_amps: "{{ states('number.tesla_ble_charging_amps') | int(0) }}"
         voltage: 200
@@ -126,7 +93,7 @@
                 - conditions:
                     - condition: template
                       value_template: >
-                        {{ states('sensor.epcube_solarpower') | float(0) < 800 }}
+                        {{ states('sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated') | float(0) < 800 }}
                   sequence:
                     - if:
                         - condition: state
@@ -331,7 +298,7 @@
   mode: single
   trigger:
     - platform: numeric_state
-      entity_id: sensor.epcube_solarpower
+      entity_id: sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated
       below: 800
       for:
         minutes: 3
@@ -359,7 +326,7 @@
       data:
         message: >
           Solar charging STOPPED - low solar production
-          (solarpower={{ states('sensor.epcube_solarpower') }}W < 800W for 3min)
+          (solarpower={{ states('sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated') }}W < 800W for 3min)
         level: warning
 
 # =============================================================================

@@ -27,10 +27,10 @@ template:
         unit_of_measurement: "W"
         device_class: power
         state: >
-          {% set grid = states('sensor.epcube_gridpower') | float(0) %}
+          {% set grid = states('sensor.nature_remo_sumatometa_current_power') | float(0) %}
           {{ (grid * -1) | round(0) }}
         availability: >
-          {{ states('sensor.epcube_gridpower') | is_number }}
+          {{ states('sensor.nature_remo_sumatometa_current_power') | is_number }}
 
       # Total available power (surplus + current charging consumption)
       # Represents: "how much surplus would there be if charging stopped"
@@ -69,21 +69,65 @@ template:
             0
           {% endif %}
 
-      # Battery power derived from energy balance (consistent with grid/home)
-      # Positive = discharging (supplying home), Negative = charging
-      - name: "EP Cube Battery Power Balanced"
-        unique_id: epcube_battery_power_balanced
+      # Home consumption power (calculated from energy balance)
+      - name: "Home Consumption Power"
+        unique_id: home_consumption_power
         unit_of_measurement: "W"
         device_class: power
         state: >
-          {% set home = states('sensor.epcube_backuppower') | float(0) %}
-          {% set grid = states('sensor.epcube_gridpower') | float(0) %}
-          {% set solar = states('sensor.epcube_solarpower') | float(0) %}
-          {{ (home - grid - solar) | round(0) }}
+          {% set solar = states('sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated') | float(0) %}
+          {% set battery = states('sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy') | float(0) %}
+          {% set grid = states('sensor.nature_remo_sumatometa_current_power') | float(0) %}
+          {{ (solar - battery + grid) | round(0) }}
         availability: >
-          {{ states('sensor.epcube_backuppower') | is_number
-             and states('sensor.epcube_gridpower') | is_number
-             and states('sensor.epcube_solarpower') | is_number }}
+          {{ states('sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy') | is_number
+             and states('sensor.nature_remo_sumatometa_current_power') | is_number }}
+
+      # Battery power for dashboard display (inverted ECHONET Lite sign)
+      # ECHONET Lite: negative=discharge, positive=charge
+      # Dashboard (power-flow-card-plus): positive=discharge, negative=charge
+      - name: "EP Cube Battery Power Display"
+        unique_id: epcube_battery_power_display
+        unit_of_measurement: "W"
+        device_class: power
+        state: >
+          {% set battery = states('sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy') | float(0) %}
+          {{ (battery * -1) | round(0) }}
+        availability: >
+          {{ states('sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy') | is_number }}
+
+      # Solar cumulative energy in kWh (ECHONET Lite reports Wh)
+      - name: "Solar Cumulative Energy kWh"
+        unique_id: solar_cumulative_energy_kwh
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {{ (states('sensor.ep_cube_measured_cumulative_amount_of_electric_energy_generated') | float(0) / 1000) | round(2) }}
+        availability: >
+          {{ states('sensor.ep_cube_measured_cumulative_amount_of_electric_energy_generated') | is_number }}
+
+      # Battery cumulative charge in kWh (ECHONET Lite AC-side only, reports Wh)
+      - name: "Battery Cumulative Charge kWh"
+        unique_id: battery_cumulative_charge_kwh
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {{ (states('sensor.ep_cube_ac_measured_cumulative_charging_electric_energy') | float(0) / 1000) | round(2) }}
+        availability: >
+          {{ states('sensor.ep_cube_ac_measured_cumulative_charging_electric_energy') | is_number }}
+
+      # Battery cumulative discharge in kWh (ECHONET Lite AC-side only, reports Wh)
+      - name: "Battery Cumulative Discharge kWh"
+        unique_id: battery_cumulative_discharge_kwh
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {{ (states('sensor.ep_cube_ac_measured_cumulative_discharging_electric_energy') | float(0) / 1000) | round(2) }}
+        availability: >
+          {{ states('sensor.ep_cube_ac_measured_cumulative_discharging_electric_energy') | is_number }}
 
       # Charging power in W (V×A calculation — tesla_ble_charge_power is integer-only)
       - name: "Tesla Charging Power W"

@@ -16,10 +16,10 @@ views:
         title: Solar EV System
         entities:
           solar:
-            entity: sensor.epcube_solarpower
+            entity: sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated
             display_zero_state: true
           grid:
-            entity: sensor.epcube_gridpower
+            entity: sensor.nature_remo_sumatometa_current_power
             color:
               consumption:
                 - 100
@@ -30,10 +30,10 @@ views:
                 - 130
                 - 255
           battery:
-            entity: sensor.ep_cube_battery_power_balanced
-            state_of_charge: sensor.epcube_batterysoc
+            entity: sensor.ep_cube_battery_power_display
+            state_of_charge: sensor.ep_cube_remaining_stored_electricity_3
           home:
-            entity: sensor.epcube_backuppower
+            entity: sensor.home_consumption_power
             override_state: true
             name: Home
           individual:
@@ -98,7 +98,7 @@ views:
         title: Power Flow (Today)
         hours_to_show: 24
         entities:
-          - entity: sensor.epcube_solarpower
+          - entity: sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated
             name: Solar
           - entity: sensor.solar_surplus_power
             name: Surplus
@@ -106,7 +106,7 @@ views:
             name: Total Available
           - entity: sensor.tesla_charging_power_w
             name: EV Charging
-          - entity: sensor.epcube_gridpower
+          - entity: sensor.nature_remo_sumatometa_current_power
             name: Grid
 
       # --- Battery Levels ---
@@ -116,7 +116,7 @@ views:
         entities:
           - entity: sensor.tesla_ble_charge_level
             name: Tesla Battery
-          - entity: sensor.epcube_batterysoc
+          - entity: sensor.ep_cube_remaining_stored_electricity_3
             name: EP Cube Battery
 
       # --- Charging Current ---
@@ -167,7 +167,6 @@ views:
       - type: entities
         title: Automations
         entities:
-          - entity: automation.ep_cube_auto_refresh_stale_data
           - entity: automation.solar_surplus_adjust_charging_amps
           - entity: automation.solar_surplus_start_charging_enable_delay_expired
           - entity: automation.solar_surplus_stop_charging_disable_delay_expired

@@ -10,8 +10,9 @@
 #   Cable plugged in + solar mode ON → charger OFF (wait for surplus)
 #   Emergency: surplus < -500W for 2min → immediate stop
 #
-# Key concept: total_available = surplus + charging_power_w
-#   "How much surplus would there be if we stopped charging?"
+# Key concept: Hybrid approach
+#   Start: surplus (grid-based) — accurate real excess measurement
+#   Stop/adjust: solarpower — avoids EP Cube battery compensation masking deficit
 
 # =============================================================================
 # EP Cube: Reload integration if sensors stale >3min (safety net)
@@ -87,12 +88,12 @@
   action:
     - variables:
         surplus: "{{ states('sensor.solar_surplus_power') | float(0) }}"
-        charging_w: "{{ states('sensor.tesla_charging_power_w') | float(0) }}"
-        total_available: "{{ surplus + charging_w }}"
+        solarpower: "{{ states('sensor.epcube_solarpower') | float(0) }}"
         is_charging: "{{ is_state('switch.tesla_ble_charger', 'on') }}"
         current_amps: "{{ states('number.tesla_ble_charging_amps') | int(0) }}"
         voltage: 200
-        target: "{{ [[((total_available - 400) / voltage) | int, 5] | max, 24] | min }}"
+        base_load: 400
+        target: "{{ [[((solarpower - base_load) / voltage) | int, 5] | max, 24] | min }}"
     - choose:
         # === CHARGING: Adjust amps or prepare to stop ===
         - conditions:
@@ -100,19 +101,16 @@
               value_template: "{{ is_charging }}"
           sequence:
             - choose:
-                # REDUCE: surplus went negative, proportionally reduce amps
+                # REDUCE: solar can't cover current charging + base load
                 - conditions:
                     - condition: template
-                      value_template: "{{ surplus < -100 and current_amps > 5 }}"
+                      value_template: "{{ solarpower < (current_amps * voltage + base_load) and current_amps > 5 }}"
                   sequence:
-                    - variables:
-                        reduce_by: "{{ [((-1 * surplus) / voltage) | int + 1, current_amps - 5] | min }}"
-                        new_amps: "{{ [current_amps - reduce_by, 5] | max }}"
                     - service: number.set_value
                       target:
                         entity_id: number.tesla_ble_charging_amps
                       data:
-                        value: "{{ new_amps }}"
+                        value: "{{ target }}"
                     - service: timer.start
                       target:
                         entity_id: timer.solar_stabilize
@@ -120,7 +118,7 @@
                         duration: "00:00:45"
                     - service: system_log.write
                       data:
-                        message: "Solar charging REDUCE: {{ current_amps }}A → {{ new_amps }}A (surplus={{ surplus }}W)"
+                        message: "Solar charging REDUCE: {{ current_amps }}A → {{ target }}A (solarpower={{ solarpower }}W)"
                         level: info
 
                 # LOW SOLAR: Start disable delay timer
@@ -140,7 +138,7 @@
                             entity_id: timer.solar_disable_delay
                         - service: system_log.write
                           data:
-                            message: "Solar charging disable delay started (total_available={{ total_available }}W)"
+                            message: "Solar charging disable delay started (solarpower={{ solarpower }}W)"
                             level: info
 
               # DEFAULT: Sufficient surplus, cancel disable timer and adjust amps
@@ -155,7 +153,7 @@
                         entity_id: timer.solar_disable_delay
                     - service: system_log.write
                       data:
-                        message: "Solar charging disable delay cancelled (total_available={{ total_available }}W)"
+                        message: "Solar charging disable delay cancelled (solarpower={{ solarpower }}W)"
                         level: info
                 # Ramp UP: jump straight to target
                 - if:
@@ -174,7 +172,7 @@
                         duration: "00:00:45"
                     - service: system_log.write
                       data:
-                        message: "Solar charging RAMP UP: {{ current_amps }}A → {{ target }}A (total_available={{ total_available }}W)"
+                        message: "Solar charging RAMP UP: {{ current_amps }}A → {{ target }}A (solarpower={{ solarpower }}W)"
                         level: info
                 # Ramp DOWN: only if diff >= 3A (deadband)
                 - if:
@@ -193,7 +191,7 @@
                         duration: "00:00:45"
                     - service: system_log.write
                       data:
-                        message: "Solar charging RAMP DOWN: {{ current_amps }}A → {{ target }}A (total_available={{ total_available }}W)"
+                        message: "Solar charging RAMP DOWN: {{ current_amps }}A → {{ target }}A (solarpower={{ solarpower }}W)"
                         level: info
 
         # === NOT CHARGING: Check if we should start ===
@@ -202,7 +200,7 @@
               value_template: "{{ not is_charging }}"
           sequence:
             - choose:
-                # Surplus high enough to consider starting
+                # Surplus high enough to consider starting (grid exporting >= 1200W)
                 - conditions:
                     - condition: template
                       value_template: "{{ surplus >= 1200 }}"

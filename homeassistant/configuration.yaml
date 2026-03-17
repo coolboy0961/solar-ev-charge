@@ -96,39 +96,6 @@ template:
         availability: >
           {{ states('sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy') | is_number }}
 
-      # Solar cumulative energy in kWh (ECHONET Lite reports Wh)
-      - name: "Solar Cumulative Energy kWh"
-        unique_id: solar_cumulative_energy_kwh
-        unit_of_measurement: "kWh"
-        device_class: energy
-        state_class: total_increasing
-        state: >
-          {{ (states('sensor.ep_cube_measured_cumulative_amount_of_electric_energy_generated') | float(0) / 1000) | round(2) }}
-        availability: >
-          {{ states('sensor.ep_cube_measured_cumulative_amount_of_electric_energy_generated') | is_number }}
-
-      # Battery cumulative charge in kWh (ECHONET Lite AC-side only, reports Wh)
-      - name: "Battery Cumulative Charge kWh"
-        unique_id: battery_cumulative_charge_kwh
-        unit_of_measurement: "kWh"
-        device_class: energy
-        state_class: total_increasing
-        state: >
-          {{ (states('sensor.ep_cube_ac_measured_cumulative_charging_electric_energy') | float(0) / 1000) | round(2) }}
-        availability: >
-          {{ states('sensor.ep_cube_ac_measured_cumulative_charging_electric_energy') | is_number }}
-
-      # Battery cumulative discharge in kWh (ECHONET Lite AC-side only, reports Wh)
-      - name: "Battery Cumulative Discharge kWh"
-        unique_id: battery_cumulative_discharge_kwh
-        unit_of_measurement: "kWh"
-        device_class: energy
-        state_class: total_increasing
-        state: >
-          {{ (states('sensor.ep_cube_ac_measured_cumulative_discharging_electric_energy') | float(0) / 1000) | round(2) }}
-        availability: >
-          {{ states('sensor.ep_cube_ac_measured_cumulative_discharging_electric_energy') | is_number }}
-
       # Charging power in W (V×A calculation — tesla_ble_charge_power is integer-only)
       - name: "Tesla Charging Power W"
         unique_id: tesla_charging_power_w

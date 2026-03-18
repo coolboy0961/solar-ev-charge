@@ -10,6 +10,7 @@ views:
   - title: Overview
     path: overview
     icon: mdi:solar-power
+    type: sidebar
     cards:
       # --- Power Flow (real-time with Tesla Model 3) ---
       - type: custom:power-flow-card-plus
@@ -86,9 +87,11 @@ views:
 
       - type: energy-date-selection
 
-      # --- Solar Charging Control ---
+      # --- Solar Charging Control (sidebar) ---
       - type: entities
         title: Solar Charging Control
+        view_layout:
+          position: sidebar
         entities:
           - entity: input_boolean.solar_charging_enabled
             name: Solar Charging
@@ -101,9 +104,11 @@ views:
           - entity: sensor.available_charging_amps
             name: Available Amps
 
-      # --- Tesla Vehicle Status ---
+      # --- Tesla Vehicle Status (sidebar) ---
       - type: entities
         title: Tesla Model 3
+        view_layout:
+          position: sidebar
         entities:
           - entity: sensor.tesla_ble_charge_level
             name: Battery Level
@@ -165,6 +170,13 @@ views:
             name: Actual Current
           - entity: sensor.available_charging_amps
             name: Available Amps
+
+      # --- Device Energy Usage ---
+      - type: energy-date-selection
+      - type: energy-devices-detail-graph
+        title: Device Detail
+      - type: energy-devices-graph
+        title: Device Total
 
   # ==========================================================================
   # System View: Diagnostics

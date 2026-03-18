@@ -53,7 +53,7 @@ views:
       # --- Energy Flow (daily kWh) ---
       - type: custom:energy-flow-card-plus
         title: Energy Flow
-        energy_date_selection: false
+        energy_date_selection: true
         dashboard_link: ""
         entities:
           solar:

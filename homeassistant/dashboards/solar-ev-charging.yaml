@@ -13,7 +13,7 @@ views:
     cards:
       # --- Power Flow (real-time with Tesla Model 3) ---
       - type: custom:power-flow-card-plus
-        title: Solar EV System
+        title: Power Flow
         entities:
           solar:
             entity: sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated
@@ -35,7 +35,7 @@ views:
           home:
             entity: sensor.home_consumption_power
             override_state: true
-            name: Home
+            name: 家
           individual:
             - entity: sensor.tesla_charging_power_w
               name: Tesla
@@ -48,6 +48,43 @@ views:
                 decimals: 0
                 display_zero: false
         w_decimals: 1
+
+      # --- Energy Flow (daily kWh) ---
+      - type: custom:energy-flow-card-plus
+        title: Energy Flow
+        energy_date_selection: false
+        dashboard_link: ""
+        entities:
+          solar:
+            entity: sensor.ep_cube_measured_cumulative_amount_of_electric_energy_generated
+            name: 太阳能
+            icon: mdi:solar-power
+            display_zero_state: true
+          grid:
+            entity:
+              consumption: sensor.nature_remo_sumatometa_buy_power
+              production: sensor.nature_remo_sumatometa_sold_power
+          battery:
+            entity:
+              consumption: sensor.ep_cube_ac_measured_cumulative_discharging_electric_energy
+              production: sensor.ep_cube_ac_measured_cumulative_charging_electric_energy
+            state_of_charge: sensor.ep_cube_remaining_stored_electricity_3
+          home:
+            override_state: true
+          individual1:
+            entity: sensor.tesla_ev_charging_energy
+            name: Tesla
+            icon: mdi:car-electric
+            display_zero: true
+            display_zero_state: true
+            secondary_info:
+              entity: sensor.tesla_ble_charge_level
+              unit_of_measurement: "%"
+              decimals: 0
+        wh_decimals: 1
+        kwh_decimals: 1
+
+      - type: energy-date-selection
 
       # --- Solar Charging Control ---
       - type: entities

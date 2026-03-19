@@ -1,5 +1,6 @@
 # Secrets
 esphome/secrets.yaml
+wisun-smartmeter/src/secrets.h
 
 # macOS
 .DS_Store
@@ -7,3 +8,7 @@ esphome/secrets.yaml
 # Home Assistant
 homeassistant/.storage/
 homeassistant/*.log
+
+# PlatformIO
+.pio/
+.vscode/

@@ -38,7 +38,7 @@
     - condition: template
       value_template: >
         {% set sensors = [
-          states.sensor.nature_remo_sumatometa_current_power,
+          states.sensor.smart_meter_power,
           states.sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy,
           states.sensor.ep_cube_remaining_stored_electricity_3
         ] %}

@@ -20,7 +20,7 @@ views:
             entity: sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated
             display_zero_state: true
           grid:
-            entity: sensor.nature_remo_sumatometa_current_power
+            entity: sensor.smart_meter_power
             color:
               consumption:
                 - 100
@@ -63,8 +63,8 @@ views:
             display_zero_state: true
           grid:
             entity:
-              consumption: sensor.nature_remo_sumatometa_buy_power
-              production: sensor.nature_remo_sumatometa_sold_power
+              consumption: sensor.smart_meter_cumulative_buy
+              production: sensor.smart_meter_cumulative_sell
           battery:
             entity:
               consumption: sensor.ep_cube_ac_measured_cumulative_discharging_electric_energy
@@ -148,7 +148,7 @@ views:
             name: Total Available
           - entity: sensor.tesla_charging_power_w
             name: EV Charging
-          - entity: sensor.nature_remo_sumatometa_current_power
+          - entity: sensor.smart_meter_power
             name: Grid
 
       # --- Battery Levels ---

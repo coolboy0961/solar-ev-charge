@@ -27,10 +27,10 @@ template:
         unit_of_measurement: "W"
         device_class: power
         state: >
-          {% set grid = states('sensor.nature_remo_sumatometa_current_power') | float(0) %}
+          {% set grid = states('sensor.smart_meter_power') | float(0) %}
           {{ (grid * -1) | round(0) }}
         availability: >
-          {{ states('sensor.nature_remo_sumatometa_current_power') | is_number }}
+          {{ states('sensor.smart_meter_power') | is_number }}
 
       # Total available power (surplus + current charging consumption)
       # Represents: "how much surplus would there be if charging stopped"
@@ -77,11 +77,11 @@ template:
         state: >
           {% set solar = states('sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated') | float(0) %}
           {% set battery = states('sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy') | float(0) %}
-          {% set grid = states('sensor.nature_remo_sumatometa_current_power') | float(0) %}
+          {% set grid = states('sensor.smart_meter_power') | float(0) %}
           {{ (solar - battery + grid) | round(0) }}
         availability: >
           {{ states('sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy') | is_number
-             and states('sensor.nature_remo_sumatometa_current_power') | is_number }}
+             and states('sensor.smart_meter_power') | is_number }}
 
       # Battery power for dashboard display (inverted ECHONET Lite sign)
       # ECHONET Lite: negative=discharge, positive=charge

@@ -11,7 +11,7 @@ uint16_t LcdDisplay::levelToColor(Level level) {
 
 void LcdDisplay::begin() {
     M5.begin();
-    M5.Lcd.setRotation(1);
+    M5.Lcd.setRotation(3);
     M5.Lcd.fillScreen(BLACK);
     _logY = 0;
 }

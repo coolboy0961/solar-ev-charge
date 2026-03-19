@@ -62,6 +62,8 @@ void test_meter_data_default_values() {
     TEST_ASSERT_EQUAL_INT32(0, data.power);
     TEST_ASSERT_FLOAT_WITHIN(0.01, 0.0, data.buyEnergy);
     TEST_ASSERT_FLOAT_WITHIN(0.01, 0.0, data.sellEnergy);
+    TEST_ASSERT_FALSE(data.powerValid);
+    TEST_ASSERT_FALSE(data.energyValid);
 }
 
 void test_meter_data_assignment() {
@@ -96,6 +98,8 @@ void test_parse_power_response() {
     bool ok = EchonetLiteParser::parseFrame(hex, strlen(hex), data);
     TEST_ASSERT_TRUE(ok);
     TEST_ASSERT_EQUAL_INT32(42, data.power);
+    TEST_ASSERT_TRUE(data.powerValid);
+    TEST_ASSERT_FALSE(data.energyValid);  // energy not in this frame
 }
 
 void test_parse_negative_power() {
@@ -114,6 +118,8 @@ void test_parse_buy_energy() {
     bool ok = EchonetLiteParser::parseFrame(hex, strlen(hex), data);
     TEST_ASSERT_TRUE(ok);
     TEST_ASSERT_FLOAT_WITHIN(0.1, 1200.8, data.buyEnergy);
+    TEST_ASSERT_TRUE(data.energyValid);
+    TEST_ASSERT_FALSE(data.powerValid);  // power not in this frame
 }
 
 void test_parse_sell_energy() {
@@ -133,6 +139,40 @@ void test_parse_power_out_of_range() {
     bool ok = EchonetLiteParser::parseFrame(hex, strlen(hex), data);
     TEST_ASSERT_FALSE(ok);
     TEST_ASSERT_EQUAL_INT32(999, data.power);  // Unchanged
+    TEST_ASSERT_FALSE(data.powerValid);  // rejected → still invalid
+}
+
+void test_parse_failed_frame_keeps_valid_flags_false() {
+    // Invalid SEOJ → parse fails, valid flags must stay false
+    const char* hex = "10810001029901" "05FF01" "72" "01" "E7" "04" "0000002A";
+    MeterData data;
+    EchonetLiteParser::parseFrame(hex, strlen(hex), data);
+    TEST_ASSERT_FALSE(data.powerValid);
+    TEST_ASSERT_FALSE(data.energyValid);
+}
+
+void test_startup_scenario_power_ok_energy_timeout() {
+    // BUG REGRESSION: On startup, E7 succeeds but E0 times out.
+    // buyEnergy stays 0 with energyValid=false, so publisher must
+    // skip energy topics to avoid overwriting retained MQTT data.
+    MeterData data;
+
+    // E7 response arrives → power updated
+    const char* powerHex = "10810001028801" "05FF01" "72" "01" "E7" "04" "0000002A";
+    EchonetLiteParser::parseFrame(powerHex, strlen(powerHex), data);
+    TEST_ASSERT_TRUE(data.powerValid);
+    TEST_ASSERT_EQUAL_INT32(42, data.power);
+
+    // E0 times out → no parse call, energy stays invalid
+    TEST_ASSERT_FALSE(data.energyValid);
+    TEST_ASSERT_FLOAT_WITHIN(0.01, 0.0, data.buyEnergy);
+
+    // E3 response arrives → energyValid becomes true
+    const char* sellHex = "10810001028801" "05FF01" "72" "01" "E3" "04" "000011D3";
+    EchonetLiteParser::parseFrame(sellHex, strlen(sellHex), data);
+    TEST_ASSERT_TRUE(data.energyValid);
+    // buyEnergy is still 0, but energyValid is true because E3 succeeded.
+    // This is acceptable: sell has real data, buy will update next cycle.
 }
 
 void test_parse_invalid_seoj() {
@@ -323,6 +363,85 @@ void test_session_monitor_intermittent_failures_no_loss() {
 }
 
 // =============================================================
+// Scenario: Poll-level session monitoring
+// Verifies that session loss is counted per poll cycle, not per
+// individual request. A single poll with 3 failed requests
+// (E7+E0+E3) must count as ONE failure, not three.
+// =============================================================
+
+// Helper: simulates one poll cycle and records result to monitor.
+// requestResults: array of per-request success/fail booleans.
+// Returns true if any request succeeded (matching poll() logic).
+static bool simulatePollCycle(SessionMonitor& monitor,
+                              const bool* requestResults, int count) {
+    bool anySuccess = false;
+    for (int i = 0; i < count; i++) {
+        if (requestResults[i]) anySuccess = true;
+    }
+    if (anySuccess) {
+        monitor.recordSuccess();
+    } else {
+        monitor.recordFailure();
+    }
+    return anySuccess;
+}
+
+void test_poll_all_requests_fail_counts_as_one_failure() {
+    // BUG REGRESSION: previously each requestSync timeout incremented
+    // the counter, so a single 60s poll (E7+E0+E3 all fail) hit
+    // threshold=3 and triggered immediate reconnection.
+    SessionMonitor monitor(3);
+    bool results[] = {false, false, false};  // E7, E0, E3 all timeout
+    simulatePollCycle(monitor, results, 3);
+    TEST_ASSERT_EQUAL_INT(1, monitor.failureCount());
+    TEST_ASSERT_FALSE(monitor.isSessionLost());
+}
+
+void test_poll_partial_success_resets_count() {
+    // E7 succeeds but E0+E3 timeout → poll is a success
+    SessionMonitor monitor(3);
+    monitor.recordFailure();  // previous poll failed
+    monitor.recordFailure();  // another poll failed
+
+    bool results[] = {true, false, false};  // E7 ok, E0+E3 timeout
+    simulatePollCycle(monitor, results, 3);
+    TEST_ASSERT_EQUAL_INT(0, monitor.failureCount());
+    TEST_ASSERT_FALSE(monitor.isSessionLost());
+}
+
+void test_poll_three_full_failures_triggers_session_lost() {
+    // 3 consecutive polls where ALL requests fail → session lost
+    SessionMonitor monitor(3);
+    bool allFail[] = {false, false, false};
+    simulatePollCycle(monitor, allFail, 3);  // poll 1
+    simulatePollCycle(monitor, allFail, 3);  // poll 2
+    simulatePollCycle(monitor, allFail, 3);  // poll 3
+    TEST_ASSERT_EQUAL_INT(3, monitor.failureCount());
+    TEST_ASSERT_TRUE(monitor.isSessionLost());
+}
+
+void test_poll_power_only_cycle_counts_as_one() {
+    // 10s cycle: only E7 requested and fails
+    SessionMonitor monitor(3);
+    bool results[] = {false};  // E7 timeout
+    simulatePollCycle(monitor, results, 1);
+    TEST_ASSERT_EQUAL_INT(1, monitor.failureCount());
+    TEST_ASSERT_FALSE(monitor.isSessionLost());
+}
+
+void test_poll_recovery_mid_sequence_prevents_session_lost() {
+    // 2 full-failure polls, then 1 partial success → no session lost
+    SessionMonitor monitor(3);
+    bool allFail[] = {false, false, false};
+    bool partialOk[] = {true, false, false};
+    simulatePollCycle(monitor, allFail, 3);     // poll 1: all fail
+    simulatePollCycle(monitor, allFail, 3);     // poll 2: all fail
+    simulatePollCycle(monitor, partialOk, 3);   // poll 3: E7 ok
+    TEST_ASSERT_EQUAL_INT(0, monitor.failureCount());
+    TEST_ASSERT_FALSE(monitor.isSessionLost());
+}
+
+// =============================================================
 // Test Runner
 // =============================================================
 
@@ -339,6 +458,8 @@ int main(int argc, char** argv) {
     RUN_TEST(test_parse_buy_energy);
     RUN_TEST(test_parse_sell_energy);
     RUN_TEST(test_parse_power_out_of_range);
+    RUN_TEST(test_parse_failed_frame_keeps_valid_flags_false);
+    RUN_TEST(test_startup_scenario_power_ok_energy_timeout);
     RUN_TEST(test_parse_invalid_seoj);
     RUN_TEST(test_parse_invalid_esv);
     RUN_TEST(test_parse_too_short);
@@ -361,6 +482,13 @@ int main(int argc, char** argv) {
     RUN_TEST(test_session_monitor_success_after_threshold_resets);
     RUN_TEST(test_session_monitor_reset);
     RUN_TEST(test_session_monitor_intermittent_failures_no_loss);
+
+    // Scenario: Poll-level session monitoring
+    RUN_TEST(test_poll_all_requests_fail_counts_as_one_failure);
+    RUN_TEST(test_poll_partial_success_resets_count);
+    RUN_TEST(test_poll_three_full_failures_triggers_session_lost);
+    RUN_TEST(test_poll_power_only_cycle_counts_as_one);
+    RUN_TEST(test_poll_recovery_mid_sequence_prevents_session_lost);
 
     return UNITY_END();
 }

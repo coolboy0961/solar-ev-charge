@@ -14,17 +14,27 @@ bool EchonetLiteMeter::poll() {
     bool needEnergy = (_lastEnergyRead == 0) ||
                       (millis() - _lastEnergyRead >= ENERGY_READ_INTERVAL);
 
+    bool anySuccess = false;
+
     // Instantaneous power (EPC 0xE7)
     delay(1000);
-    requestSync(0xE7);
+    if (requestSync(0xE7)) anySuccess = true;
 
     // Cumulative energy: buy (0xE0) + sell (0xE3)
     if (needEnergy) {
         delay(1000);
-        requestSync(0xE0);
+        if (requestSync(0xE0)) anySuccess = true;
         delay(1000);
-        requestSync(0xE3);
+        if (requestSync(0xE3)) anySuccess = true;
         _lastEnergyRead = millis();
+    }
+
+    if (anySuccess) {
+        _session.recordSuccess();
+    } else {
+        _session.recordFailure();
+        Serial.printf("[ECHONET] Poll failed (consecutive=%d/%d)\n",
+                      _session.failureCount(), 3);
     }
 
     _lastPowerRead = millis();
@@ -68,7 +78,6 @@ bool EchonetLiteMeter::requestSync(uint8_t epc, unsigned long timeout) {
             }
             Serial.printf("[ECHONET RX] len=%d\n", response.length());
             parseResponse(response);
-            _session.recordSuccess();
             return true;
         }
         if (response.indexOf("FAIL") >= 0) {
@@ -77,8 +86,7 @@ bool EchonetLiteMeter::requestSync(uint8_t epc, unsigned long timeout) {
         }
         delay(10);
     }
-    _session.recordFailure();
-    Serial.printf("[ECHONET] Timeout EPC=0x%02X (consecutive=%d)\n", epc, _session.failureCount());
+    Serial.printf("[ECHONET] Timeout EPC=0x%02X\n", epc);
     return false;
 }
 

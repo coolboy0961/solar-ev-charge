@@ -58,11 +58,11 @@ inline bool parseFrame(const char* hexData, int hexLen, MeterData& data) {
             }
         } else if (strcmp(epcStr, "E0") == 0 && pdc == 4) {
             data.buyEnergy = strtoul(propData, NULL, 16) * 0.1f;
-            data.energyValid = true;
+            data.buyEnergyValid = true;
             parsed = true;
         } else if (strcmp(epcStr, "E3") == 0 && pdc == 4) {
             data.sellEnergy = strtoul(propData, NULL, 16) * 0.1f;
-            data.energyValid = true;
+            data.sellEnergyValid = true;
             parsed = true;
         }
     }

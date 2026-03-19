@@ -63,7 +63,7 @@ void test_meter_data_default_values() {
     TEST_ASSERT_FLOAT_WITHIN(0.01, 0.0, data.buyEnergy);
     TEST_ASSERT_FLOAT_WITHIN(0.01, 0.0, data.sellEnergy);
     TEST_ASSERT_FALSE(data.powerValid);
-    TEST_ASSERT_FALSE(data.energyValid);
+    TEST_ASSERT_FALSE(data.buyEnergyValid);
 }
 
 void test_meter_data_assignment() {
@@ -99,7 +99,8 @@ void test_parse_power_response() {
     TEST_ASSERT_TRUE(ok);
     TEST_ASSERT_EQUAL_INT32(42, data.power);
     TEST_ASSERT_TRUE(data.powerValid);
-    TEST_ASSERT_FALSE(data.energyValid);  // energy not in this frame
+    TEST_ASSERT_FALSE(data.buyEnergyValid);   // energy not in this frame
+    TEST_ASSERT_FALSE(data.sellEnergyValid);
 }
 
 void test_parse_negative_power() {
@@ -118,8 +119,9 @@ void test_parse_buy_energy() {
     bool ok = EchonetLiteParser::parseFrame(hex, strlen(hex), data);
     TEST_ASSERT_TRUE(ok);
     TEST_ASSERT_FLOAT_WITHIN(0.1, 1200.8, data.buyEnergy);
-    TEST_ASSERT_TRUE(data.energyValid);
-    TEST_ASSERT_FALSE(data.powerValid);  // power not in this frame
+    TEST_ASSERT_TRUE(data.buyEnergyValid);
+    TEST_ASSERT_FALSE(data.sellEnergyValid);  // sell not in this frame
+    TEST_ASSERT_FALSE(data.powerValid);       // power not in this frame
 }
 
 void test_parse_sell_energy() {
@@ -129,6 +131,8 @@ void test_parse_sell_energy() {
     bool ok = EchonetLiteParser::parseFrame(hex, strlen(hex), data);
     TEST_ASSERT_TRUE(ok);
     TEST_ASSERT_FLOAT_WITHIN(0.1, 456.3, data.sellEnergy);
+    TEST_ASSERT_TRUE(data.sellEnergyValid);
+    TEST_ASSERT_FALSE(data.buyEnergyValid);  // buy not in this frame
 }
 
 void test_parse_power_out_of_range() {
@@ -148,7 +152,8 @@ void test_parse_failed_frame_keeps_valid_flags_false() {
     MeterData data;
     EchonetLiteParser::parseFrame(hex, strlen(hex), data);
     TEST_ASSERT_FALSE(data.powerValid);
-    TEST_ASSERT_FALSE(data.energyValid);
+    TEST_ASSERT_FALSE(data.buyEnergyValid);
+    TEST_ASSERT_FALSE(data.sellEnergyValid);
 }
 
 void test_startup_scenario_power_ok_energy_timeout() {
@@ -164,15 +169,15 @@ void test_startup_scenario_power_ok_energy_timeout() {
     TEST_ASSERT_EQUAL_INT32(42, data.power);
 
     // E0 times out → no parse call, energy stays invalid
-    TEST_ASSERT_FALSE(data.energyValid);
+    TEST_ASSERT_FALSE(data.buyEnergyValid);
     TEST_ASSERT_FLOAT_WITHIN(0.01, 0.0, data.buyEnergy);
 
-    // E3 response arrives → energyValid becomes true
+    // E3 response arrives → only sellEnergyValid becomes true
     const char* sellHex = "10810001028801" "05FF01" "72" "01" "E3" "04" "000011D3";
     EchonetLiteParser::parseFrame(sellHex, strlen(sellHex), data);
-    TEST_ASSERT_TRUE(data.energyValid);
-    // buyEnergy is still 0, but energyValid is true because E3 succeeded.
-    // This is acceptable: sell has real data, buy will update next cycle.
+    TEST_ASSERT_TRUE(data.sellEnergyValid);
+    TEST_ASSERT_FALSE(data.buyEnergyValid);  // buy was never parsed
+    // Publisher must skip buyEnergy (still 0.0) and only publish sellEnergy.
 }
 
 void test_parse_invalid_seoj() {

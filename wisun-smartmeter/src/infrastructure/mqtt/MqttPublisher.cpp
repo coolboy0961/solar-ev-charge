@@ -31,8 +31,10 @@ void MqttPublisher::publish(const MeterData& data) {
     if (data.powerValid) {
         _mqtt.publish(MQTT_TOPIC_POWER, String(data.power).c_str(), true);
     }
-    if (data.energyValid) {
+    if (data.buyEnergyValid) {
         _mqtt.publish(MQTT_TOPIC_ENERGY_BUY, String(data.buyEnergy, 1).c_str(), true);
+    }
+    if (data.sellEnergyValid) {
         _mqtt.publish(MQTT_TOPIC_ENERGY_SELL, String(data.sellEnergy, 1).c_str(), true);
     }
 }

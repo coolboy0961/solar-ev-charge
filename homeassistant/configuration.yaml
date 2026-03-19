@@ -159,6 +159,40 @@ sensor:
 # =============================================================
 # Dashboard (YAML mode)
 # =============================================================
+# =============================================================
+# Wi-SUN Smart Meter (MQTT via M5StickC Plus + BP35A1)
+# =============================================================
+mqtt:
+  sensor:
+    - name: "Smart Meter Power"
+      unique_id: smartmeter_power
+      state_topic: "smartmeter/power"
+      unit_of_measurement: "W"
+      device_class: power
+      state_class: measurement
+
+    - name: "Smart Meter Cumulative Buy"
+      unique_id: smartmeter_energy_buy
+      state_topic: "smartmeter/energy_buy"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Smart Meter Cumulative Sell"
+      unique_id: smartmeter_energy_sell
+      state_topic: "smartmeter/energy_sell"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+
+  binary_sensor:
+    - name: "Smart Meter Online"
+      unique_id: smartmeter_online
+      state_topic: "smartmeter/status"
+      payload_on: "online"
+      payload_off: "offline"
+      device_class: connectivity
+
 lovelace:
   mode: storage
   dashboards:

@@ -1,7 +1,7 @@
-# Home Assistant - Portainer Stack on Synology NAS
+# Home Assistant Stack on Synology NAS
 # Deploy: Portainer > Stacks > Add Stack > paste this YAML
 #
-# Port 8123 will be available at http://<NAS_IP>:8123
+# Ports: HA=8123, MQTT=1883
 
 services:
   homeassistant:
@@ -33,3 +33,13 @@ services:
       - /volume1/docker/matter-server:/data
     environment:
       - TZ=Asia/Tokyo
+
+  mosquitto:
+    container_name: mosquitto
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /volume1/docker/mosquitto/config:/mosquitto/config
+      - /volume1/docker/mosquitto/data:/mosquitto/data
+      - /volume1/docker/mosquitto/log:/mosquitto/log

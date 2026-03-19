@@ -51,6 +51,20 @@ void loop() {
 
     service.update(wisun.isConnected());
 
+    // Reconnect if ECHONET Lite responses are timing out consecutively
+    if (wisun.isConnected() && meter.session().isSessionLost()) {
+        display.log("Session lost, reconnecting...", ILogger::WARNING);
+        publisher.publish(meter.getData());  // publish last known data
+        if (wisun.reconnect()) {
+            display.log("Reconnected!", ILogger::SUCCESS);
+            meter.setPanaAddress(wisun.getPanaAddress());
+            meter.session().reset();
+        } else {
+            display.log("Reconnect FAILED", ILogger::ERROR);
+        }
+        display.showStatus(wisun.isConnected(), meter.getData(), publisher.isConnected());
+    }
+
     // Button A: debug info
     if (display.btnAPressed()) {
         display.showDebug(wisun.isConnected(), wisun.getPanaAddress(),

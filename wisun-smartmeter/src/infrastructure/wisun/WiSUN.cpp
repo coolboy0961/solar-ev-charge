@@ -142,6 +142,24 @@ bool WiSUN::panaAuth() {
     return false;
 }
 
+// --- Reconnect (reuse cached scan, re-auth) ---
+
+bool WiSUN::reconnect() {
+    _connected = false;
+
+    // Terminate stale session
+    _modem.sendCommand("SKTERM", 3000);
+    delay(1000);
+
+    // Try cached scan first, then full reconnect
+    if (loadCache()) {
+        if (panaAuth()) return true;
+    }
+
+    clearCache();
+    return connect();
+}
+
 // --- Main Connect (with retry) ---
 
 bool WiSUN::connect() {

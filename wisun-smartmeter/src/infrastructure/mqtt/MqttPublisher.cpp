@@ -28,9 +28,13 @@ bool MqttPublisher::isConnected() {
 
 void MqttPublisher::publish(const MeterData& data) {
     if (!_mqtt.connected()) return;
-    _mqtt.publish(MQTT_TOPIC_POWER, String(data.power).c_str(), true);
-    _mqtt.publish(MQTT_TOPIC_ENERGY_BUY, String(data.buyEnergy, 1).c_str(), true);
-    _mqtt.publish(MQTT_TOPIC_ENERGY_SELL, String(data.sellEnergy, 1).c_str(), true);
+    if (data.powerValid) {
+        _mqtt.publish(MQTT_TOPIC_POWER, String(data.power).c_str(), true);
+    }
+    if (data.energyValid) {
+        _mqtt.publish(MQTT_TOPIC_ENERGY_BUY, String(data.buyEnergy, 1).c_str(), true);
+        _mqtt.publish(MQTT_TOPIC_ENERGY_SELL, String(data.sellEnergy, 1).c_str(), true);
+    }
 }
 
 void MqttPublisher::connectWiFi() {

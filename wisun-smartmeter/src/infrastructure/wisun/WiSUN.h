@@ -10,7 +10,9 @@ public:
     WiSUN(BP35A1& modem);
 
     bool connect();
+    bool reconnect();
     bool isConnected() const;
+    void setDisconnected() { _connected = false; }
     void clearCache();
 
     const String& getPanaAddress() const;

@@ -2,6 +2,7 @@
 #include "domain/MeterData.h"
 #include "domain/Interfaces.h"
 #include "domain/EchonetLiteParser.h"
+#include "domain/SessionMonitor.h"
 #include "application/MeterService.h"
 
 // =============================================================
@@ -255,6 +256,73 @@ void test_service_reports_publisher_disconnected() {
 }
 
 // =============================================================
+// Domain: SessionMonitor tests
+// =============================================================
+
+void test_session_monitor_initial_state() {
+    SessionMonitor monitor(3);
+    TEST_ASSERT_FALSE(monitor.isSessionLost());
+    TEST_ASSERT_EQUAL_INT(0, monitor.failureCount());
+}
+
+void test_session_monitor_not_lost_below_threshold() {
+    SessionMonitor monitor(3);
+    monitor.recordFailure();
+    monitor.recordFailure();
+    TEST_ASSERT_FALSE(monitor.isSessionLost());
+    TEST_ASSERT_EQUAL_INT(2, monitor.failureCount());
+}
+
+void test_session_monitor_lost_at_threshold() {
+    SessionMonitor monitor(3);
+    monitor.recordFailure();
+    monitor.recordFailure();
+    monitor.recordFailure();
+    TEST_ASSERT_TRUE(monitor.isSessionLost());
+}
+
+void test_session_monitor_success_resets_count() {
+    SessionMonitor monitor(3);
+    monitor.recordFailure();
+    monitor.recordFailure();
+    monitor.recordSuccess();
+    TEST_ASSERT_FALSE(monitor.isSessionLost());
+    TEST_ASSERT_EQUAL_INT(0, monitor.failureCount());
+}
+
+void test_session_monitor_success_after_threshold_resets() {
+    SessionMonitor monitor(3);
+    monitor.recordFailure();
+    monitor.recordFailure();
+    monitor.recordFailure();
+    TEST_ASSERT_TRUE(monitor.isSessionLost());
+    monitor.recordSuccess();
+    TEST_ASSERT_FALSE(monitor.isSessionLost());
+}
+
+void test_session_monitor_reset() {
+    SessionMonitor monitor(3);
+    monitor.recordFailure();
+    monitor.recordFailure();
+    monitor.recordFailure();
+    TEST_ASSERT_TRUE(monitor.isSessionLost());
+    monitor.reset();
+    TEST_ASSERT_FALSE(monitor.isSessionLost());
+    TEST_ASSERT_EQUAL_INT(0, monitor.failureCount());
+}
+
+void test_session_monitor_intermittent_failures_no_loss() {
+    // Simulates: fail, fail, success, fail, fail — never 3 consecutive
+    SessionMonitor monitor(3);
+    monitor.recordFailure();
+    monitor.recordFailure();
+    monitor.recordSuccess();
+    monitor.recordFailure();
+    monitor.recordFailure();
+    TEST_ASSERT_FALSE(monitor.isSessionLost());
+}
+
+// =============================================================
 // Test Runner
 // =============================================================
 
@@ -284,6 +352,15 @@ int main(int argc, char** argv) {
     RUN_TEST(test_service_no_update_when_poll_returns_false);
     RUN_TEST(test_service_publishes_and_displays_on_new_data);
     RUN_TEST(test_service_reports_publisher_disconnected);
+
+    // Domain: SessionMonitor
+    RUN_TEST(test_session_monitor_initial_state);
+    RUN_TEST(test_session_monitor_not_lost_below_threshold);
+    RUN_TEST(test_session_monitor_lost_at_threshold);
+    RUN_TEST(test_session_monitor_success_resets_count);
+    RUN_TEST(test_session_monitor_success_after_threshold_resets);
+    RUN_TEST(test_session_monitor_reset);
+    RUN_TEST(test_session_monitor_intermittent_failures_no_loss);
 
     return UNITY_END();
 }

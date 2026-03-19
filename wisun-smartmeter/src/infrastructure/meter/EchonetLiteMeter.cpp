@@ -68,6 +68,7 @@ bool EchonetLiteMeter::requestSync(uint8_t epc, unsigned long timeout) {
             }
             Serial.printf("[ECHONET RX] len=%d\n", response.length());
             parseResponse(response);
+            _session.recordSuccess();
             return true;
         }
         if (response.indexOf("FAIL") >= 0) {
@@ -76,7 +77,8 @@ bool EchonetLiteMeter::requestSync(uint8_t epc, unsigned long timeout) {
         }
         delay(10);
     }
-    Serial.printf("[ECHONET] Timeout EPC=0x%02X\n", epc);
+    _session.recordFailure();
+    Serial.printf("[ECHONET] Timeout EPC=0x%02X (consecutive=%d)\n", epc, _session.failureCount());
     return false;
 }
 

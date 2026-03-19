@@ -53,13 +53,16 @@ inline bool parseFrame(const char* hexData, int hexLen, MeterData& data) {
             int32_t power = (int32_t)strtol(propData, NULL, 16);
             if (power >= -POWER_MAX && power <= POWER_MAX) {
                 data.power = power;
+                data.powerValid = true;
                 parsed = true;
             }
         } else if (strcmp(epcStr, "E0") == 0 && pdc == 4) {
             data.buyEnergy = strtoul(propData, NULL, 16) * 0.1f;
+            data.energyValid = true;
             parsed = true;
         } else if (strcmp(epcStr, "E3") == 0 && pdc == 4) {
             data.sellEnergy = strtoul(propData, NULL, 16) * 0.1f;
+            data.energyValid = true;
             parsed = true;
         }
     }

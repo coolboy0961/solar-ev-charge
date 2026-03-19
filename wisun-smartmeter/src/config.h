@@ -18,8 +18,8 @@
 // =============================================================
 // BP35A1 Serial Configuration (Wi-SUN HAT)
 // =============================================================
-#define BP35A1_RX_PIN 33  // M5StickC Plus HAT RX (GPIO33)
-#define BP35A1_TX_PIN 32  // M5StickC Plus HAT TX (GPIO32)
+#define BP35A1_RX_PIN 26  // HAT: ESP32 RX (GPIO26) ← BP35A1 TX
+#define BP35A1_TX_PIN 0   // HAT: ESP32 TX (GPIO0) → BP35A1 RX
 #define BP35A1_BAUD 115200
 
 // =============================================================

@@ -1,4 +1,5 @@
 #include "LcdDisplay.h"
+#include "domain/BatteryUtil.h"
 
 uint16_t LcdDisplay::levelToColor(Level level) {
     switch (level) {
@@ -29,6 +30,28 @@ void LcdDisplay::log(const char* msg, Level level) {
     Serial.println(msg);
 }
 
+int LcdDisplay::getBatteryPercent() {
+    return BatteryUtil::voltageToPercent(M5.Axp.GetBatVoltage());
+}
+
+void LcdDisplay::drawBattery() {
+    int pct = getBatteryPercent();
+    uint16_t color = (pct > 50) ? GREEN : (pct > 20) ? YELLOW : RED;
+
+    // Battery icon (16x8)
+    int bx = 178, by = 5;
+    M5.Lcd.drawRect(bx, by, 14, 8, color);       // body
+    M5.Lcd.fillRect(bx + 14, by + 2, 2, 4, color); // tip
+    int fillW = (int)(10.0f * pct / 100.0f);
+    if (fillW > 0) M5.Lcd.fillRect(bx + 2, by + 2, fillW, 4, color);
+
+    // Percentage text
+    M5.Lcd.setTextSize(1);
+    M5.Lcd.setTextColor(color, BLACK);
+    M5.Lcd.setCursor(198, 5);
+    M5.Lcd.printf("%3d%%", pct);
+}
+
 void LcdDisplay::showStatus(bool meterOk, const MeterData& data, bool publisherOk) {
     M5.Lcd.fillScreen(BLACK);
     M5.Lcd.setTextSize(1);
@@ -36,6 +59,7 @@ void LcdDisplay::showStatus(bool meterOk, const MeterData& data, bool publisherO
     M5.Lcd.setCursor(5, 5);
     M5.Lcd.setTextColor(CYAN);
     M5.Lcd.println("Wi-SUN Smart Meter");
+    drawBattery();
 
     M5.Lcd.setCursor(5, 25);
     if (meterOk) {

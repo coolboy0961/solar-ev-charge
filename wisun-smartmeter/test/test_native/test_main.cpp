@@ -3,6 +3,7 @@
 #include "domain/Interfaces.h"
 #include "domain/EchonetLiteParser.h"
 #include "domain/SessionMonitor.h"
+#include "domain/BatteryUtil.h"
 #include "application/MeterService.h"
 
 // =============================================================
@@ -597,6 +598,43 @@ void test_poll_recovery_mid_sequence_prevents_session_lost() {
 }
 
 // =============================================================
+// Domain: BatteryUtil tests
+// =============================================================
+
+void test_battery_full_charge() {
+    // Arrange & Act & Assert
+    TEST_ASSERT_EQUAL_INT(100, BatteryUtil::voltageToPercent(4.2f));
+}
+
+void test_battery_empty() {
+    // Arrange & Act & Assert
+    TEST_ASSERT_EQUAL_INT(0, BatteryUtil::voltageToPercent(3.0f));
+}
+
+void test_battery_half() {
+    // Arrange & Act & Assert
+    TEST_ASSERT_EQUAL_INT(50, BatteryUtil::voltageToPercent(3.6f));
+}
+
+void test_battery_clamps_above_max() {
+    // Arrange: voltage above 4.2V (USB charging)
+    // Act & Assert
+    TEST_ASSERT_EQUAL_INT(100, BatteryUtil::voltageToPercent(4.5f));
+}
+
+void test_battery_clamps_below_min() {
+    // Arrange: voltage below 3.0V (deep discharge)
+    // Act & Assert
+    TEST_ASSERT_EQUAL_INT(0, BatteryUtil::voltageToPercent(2.5f));
+}
+
+void test_battery_typical_values() {
+    // Arrange & Act & Assert
+    TEST_ASSERT_EQUAL_INT(83, BatteryUtil::voltageToPercent(4.0f));
+    TEST_ASSERT_EQUAL_INT(16, BatteryUtil::voltageToPercent(3.2f));
+}
+
+// =============================================================
 // Test Runner
 // =============================================================
 
@@ -648,6 +686,14 @@ int main(int argc, char** argv) {
     RUN_TEST(test_poll_three_full_failures_triggers_session_lost);
     RUN_TEST(test_poll_power_only_cycle_counts_as_one);
     RUN_TEST(test_poll_recovery_mid_sequence_prevents_session_lost);
+
+    // Domain: BatteryUtil
+    RUN_TEST(test_battery_full_charge);
+    RUN_TEST(test_battery_empty);
+    RUN_TEST(test_battery_half);
+    RUN_TEST(test_battery_clamps_above_max);
+    RUN_TEST(test_battery_clamps_below_min);
+    RUN_TEST(test_battery_typical_values);
 
     return UNITY_END();
 }

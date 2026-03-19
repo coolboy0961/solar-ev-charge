@@ -23,4 +23,6 @@ private:
     int _logY = 0;
 
     uint16_t levelToColor(Level level);
+    int getBatteryPercent();
+    void drawBattery();
 };

@@ -1,4 +1,4 @@
-PIO = pio
+PIO ?= $(shell command -v pio 2>/dev/null || echo /tmp/pio_env/bin/pio)
 
 .PHONY: test build flash monitor clean all
 

@@ -11,7 +11,7 @@ URL: http://<NAS_IP>:8123/solar-ev-charging/overview
 
 ## Overview (メインビュー)
 
-日常的に確認・操作するメイン画面。3つのカードで構成される。
+日常的に確認・操作するメイン画面。メインエリアとサイドバーで構成される。
 
 <img src="images/ev-dashboard-overview.jpg" width="300" alt="Overview - Power Flow と Solar Charging Control">
 
@@ -21,15 +21,30 @@ URL: http://<NAS_IP>:8123/solar-ev-charging/overview
 
 | 要素 | エンティティ | 説明 |
 |------|-------------|------|
-| **Solar** | `sensor.epcube_solarpower` | 太陽光発電 (W) |
-| **Grid** | `sensor.epcube_gridpower` | 系統電力 (W)。青=買電、紫=売電 |
-| **Battery** | `sensor.epcube_battery_power` | 蓄電池充放電 (W)。SoC%も表示 |
-| **Home** | `sensor.epcube_backuppower` | 家庭消費 (W) |
-| **Tesla** | `sensor.tesla_charging_power_w` | Tesla充電電力 (W) |
+| **Solar** | `sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated` | 太陽光発電 (W) |
+| **Grid** | `sensor.smart_meter_power` | 系統電力 (W)。青=買電、紫=売電 |
+| **Battery** | `sensor.ep_cube_battery_power_display` | 蓄電池充放電 (W)。SOC%も表示 |
+| **Home** | `sensor.home_consumption_power` | 家庭消費 (W) |
+| **Tesla** | `sensor.tesla_charging_power_w` | Tesla充電電力 (W)。バッテリー残量%も表示 |
 
 **前提条件:** HACS > Frontend から `power-flow-card-plus` をインストールしておく必要がある。
 
-### Solar Charging Control カード
+### Energy Flow Card (energy-flow-card-plus)
+
+日別の累積エネルギーフロー (kWh)。Energy Dashboard と同じデータを使用。
+
+| 要素 | エンティティ | 説明 |
+|------|-------------|------|
+| **Solar** | `sensor.ep_cube_measured_cumulative_amount_of_electric_energy_generated` | 累積発電量 |
+| **Grid (buy)** | `sensor.smart_meter_cumulative_buy` | 累積買電量 |
+| **Grid (sell)** | `sensor.smart_meter_cumulative_sell` | 累積売電量 |
+| **Battery (discharge)** | `sensor.ep_cube_ac_measured_cumulative_discharging_electric_energy` | 累積放電量 |
+| **Battery (charge)** | `sensor.ep_cube_ac_measured_cumulative_charging_electric_energy` | 累積充電量 |
+| **Tesla** | `sensor.tesla_ev_charging_energy` | EV充電エネルギー |
+
+**前提条件:** HACS > Frontend から `energy-flow-card-plus` をインストールしておく必要がある。
+
+### Solar Charging Control カード (サイドバー)
 
 余剰充電の自動制御に関する状態表示と切り替え。
 
@@ -38,6 +53,7 @@ URL: http://<NAS_IP>:8123/solar-ev-charging/overview
 | **Solar Charging** | 余剰充電の自動制御ON/OFF | トグルスイッチで切替 |
 | **Surplus Available** | 充電条件が全て成立しているか | 表示のみ (自動計算) |
 | **Surplus Power** | 現在の余剰電力 (W) | 表示のみ (自動計算) |
+| **Total Available** | 余剰 + 充電中電力 (W) | 表示のみ (自動計算) |
 | **Available Amps** | 余剰から計算した充電可能電流 (A) | 表示のみ (自動計算) |
 
 **Solar Charging トグルの動作:**
@@ -45,21 +61,24 @@ URL: http://<NAS_IP>:8123/solar-ev-charging/overview
 - **OFF**: 自動化を停止し、充電中であれば充電も停止する
 
 **Surplus Available が ON になる条件** (全て満たす必要あり):
-1. 余剰電力 >= 1000W
+1. 余剰電力 >= 1200W
 2. 充電フラップが開いている (プラグ接続済み)
 3. バッテリー残量 < 充電上限
 
 **Surplus Power の読み方:**
 - 正の値 (例: 2000W) → 売電中。余剰があり充電に使える
 - 負の値 (例: -40W) → 買電中。太陽光が不足している
-- 計算式: `EP Cube Grid Power × -1`
+- 計算式: `smart_meter_power × -1`
+
+**Total Available の読み方:**
+- `Surplus Power + Tesla充電電力 (W)`
+- 充電中でも「もし充電を止めたら余剰はいくらか」を表す
 
 **Available Amps の読み方:**
-- 余剰電力を200V (単相) で割った値を5-24Aの範囲にクランプ
-- 余剰が5A未満 (1000W未満) の場合は0Aと表示される
-- 例: 余剰2000W → 2000/200 = 10A
+- `(Total Available - 400W) ÷ 200V` を5-24Aの範囲にクランプ
+- 例: Total Available 2400W → (2400-400)/200 = 10A
 
-### Tesla Model 3 カード
+### Tesla Model 3 カード (サイドバー)
 
 車両の充電状態と制御。Tesla Model 3カード内でCharging Switchの操作も可能。
 
@@ -89,11 +108,6 @@ URL: http://<NAS_IP>:8123/solar-ev-charging/overview
 - 充電停止中 → 0A と表示
 - (Tesla BLEの生データ `sensor.tesla_ble_charge_current` は停止後も最後の値を保持する仕様のため)
 
-**Plugged In (充電フラップ) について:**
-- `binary_sensor.tesla_ble_charge_flap` を使用
-- 「已打开 / ON」→ 充電フラップが開いている (通常はプラグ接続中)
-- 「关闭 / OFF」→ 充電フラップが閉じている
-
 **手動操作のヒント:**
 - Solar Charging を OFF にしてから手動で Charging Switch を操作すると、自動制御に邪魔されない
 - Set Charging Amps を変更すると、次に充電開始する際にその電流で充電される
@@ -109,14 +123,15 @@ URL: http://<NAS_IP>:8123/solar-ev-charging/overview
 
 ### Power Flow (Today) グラフ
 
-4つの電力値を時系列で表示。
+5つの電力値を時系列で表示。
 
-| ライン | 説明 |
-|--------|------|
-| **Solar** | 太陽光発電量 (W) |
-| **Surplus** | 余剰電力 (W)。正=売電/余剰、負=買電 |
-| **EV Charging** | Tesla充電電力 (W) |
-| **Grid** | 系統電力 (W)。EP Cubeの生値 |
+| ライン | エンティティ | 説明 |
+|--------|-------------|------|
+| **Solar** | `sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated` | 太陽光発電量 (W) |
+| **Surplus** | `sensor.solar_surplus_power` | 余剰電力 (W)。正=売電/余剰、負=買電 |
+| **Total Available** | `sensor.solar_total_available_power` | 余剰+充電中電力 (W) |
+| **EV Charging** | `sensor.tesla_charging_power_w` | Tesla充電電力 (W) |
+| **Grid** | `sensor.smart_meter_power` | 系統電力 (W)。正=買電、負=売電 |
 
 **グラフの見方:**
 - Solarが立ち上がる時間帯 → 太陽光発電開始
@@ -127,10 +142,10 @@ URL: http://<NAS_IP>:8123/solar-ev-charging/overview
 
 Teslaと EP Cube のバッテリー残量推移。
 
-| ライン | 説明 |
-|--------|------|
-| **Tesla Battery** | Tesla車両のバッテリー残量 (%) |
-| **EP Cube Battery** | EP Cube蓄電池の残量 (%) |
+| ライン | エンティティ | 説明 |
+|--------|-------------|------|
+| **Tesla Battery** | `sensor.tesla_ble_charge_level` | Tesla車両のバッテリー残量 (%) |
+| **EP Cube Battery** | `sensor.ep_cube_remaining_stored_electricity_3` | EP Cube蓄電池の残量 (%) |
 
 **グラフの見方:**
 - Tesla Batteryが階段状に増加 → 充電が断続的に行われている
@@ -140,20 +155,24 @@ Teslaと EP Cube のバッテリー残量推移。
 
 充電電流の推移。
 
-| ライン | 説明 |
-|--------|------|
-| **Actual Current** | 実際にTeslaに流れた電流 (A) |
-| **Available Amps** | 余剰から計算した利用可能電流 (A) |
+| ライン | エンティティ | 説明 |
+|--------|-------------|------|
+| **Actual Current** | `sensor.tesla_actual_charging_current` | 実際にTeslaに流れた電流 (A) |
+| **Available Amps** | `sensor.available_charging_amps` | 余剰から計算した利用可能電流 (A) |
 
 **グラフの見方:**
 - Available AmpsとActual Currentが近い値 → 余剰を効率よく使えている
 - Available Ampsが高いのにActual Currentが0 → 充電が停止状態 (条件未達)
 
+### Device Energy グラフ
+
+Energy Dashboard のデバイス別消費を表示。
+
 ---
 
 ## System (システムビュー)
 
-ESP32の診断情報と自動化ルールの管理。
+ESP32の診断情報、タイマー状態、自動化ルールの管理。
 
 ### ESP32 Diagnostics カード
 
@@ -174,16 +193,29 @@ ESP32の診断情報と自動化ルールの管理。
 | -70〜-80 dBm | やや弱い (接続不安定の可能性) |
 | -80 dBm 以下 | 弱い (ESP32の設置場所を見直す) |
 
+### Charging Timers カード
+
+| 項目 | 説明 | デフォルト |
+|------|------|-----------|
+| **Enable Delay** | 充電開始遅延 | 1分 |
+| **Disable Delay** | 充電停止遅延 | 3分 |
+| **Guard** | ON/OFF 切替ガード | 5分 |
+| **Stabilize** | 電流変更後安定化待ち | 90秒 |
+
 ### Automations カード
 
 自動化ルールの一覧と有効/無効切替。
 
 | 自動化 | 説明 | トリガー |
 |--------|------|----------|
-| **Solar Surplus - Adjust Charging Amps** | メインの制御ループ | 30秒ごと |
-| **Solar Surplus - Stop on Grid Import** | 買電超過時の緊急停止 | 余剰 < -500W が2分継続 |
-| **Solar Surplus - Charging Complete** | 充電完了通知 | 充電状態が "Complete" に変化 |
-| **Solar Surplus - Manual Disable** | 手動OFF時に充電停止 | Solar Charging を OFF |
+| **Adjust Charging Amps** | メインの制御ループ | 30秒ごと |
+| **Start Charging (Enable Delay Expired)** | 遅延後の充電開始 | enable delay 満了 |
+| **Stop Charging (Disable Delay Expired)** | 遅延後の充電停止 | disable delay 満了 |
+| **Stop on Low Solar Production** | 低ソーラー時の停止 | solarpower < 800W が 3分継続 |
+| **Stop on Grid Import** | 買電超過時の緊急停止 | surplus < -500W が 2分継続 |
+| **Charging Complete** | 充電完了通知 | 充電状態が "Complete" に変化 |
+| **Manual Disable** | 手動OFF時に充電停止 | Solar Charging を OFF |
+| **Cable Plugged Guard** | ケーブル接続時の自動OFF | charger ON 検出 + Solar ON + guard idle |
 
 各自動化はトグルスイッチで個別に有効/無効を切り替えられる。
 通常は全てONのままにしておく。

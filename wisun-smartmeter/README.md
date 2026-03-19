@@ -133,6 +133,62 @@ pio run              # ビルド
 pio run -t upload    # フラッシュ
 ```
 
+## Home Assistant 側の設定
+
+### 1. Mosquitto MQTT ブローカー
+
+Docker Compose で Mosquitto を起動（[docker/docker-compose.yaml](../docker/docker-compose.yaml) 参照）。
+
+### 2. MQTT インテグレーション追加
+
+Settings > Devices & Services > Add Integration > **MQTT**
+- ブローカー: `localhost`（HA と同じ Docker ネットワーク内）
+- ポート: `1883`
+
+### 3. MQTT センサー定義
+
+[homeassistant/configuration.yaml](../homeassistant/configuration.yaml) の `mqtt:` セクションで定義済み:
+
+```yaml
+mqtt:
+  sensor:
+    - name: "Smart Meter Power"
+      state_topic: "smartmeter/power"
+      unit_of_measurement: "W"
+      device_class: power
+      state_class: measurement
+
+    - name: "Smart Meter Cumulative Buy"
+      state_topic: "smartmeter/energy_buy"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Smart Meter Cumulative Sell"
+      state_topic: "smartmeter/energy_sell"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+
+  binary_sensor:
+    - name: "Smart Meter Online"
+      state_topic: "smartmeter/status"
+      payload_on: "online"
+      payload_off: "offline"
+      device_class: connectivity
+```
+
+設定反映後、HA を再起動すると以下のエンティティが使用可能になる:
+
+| Entity ID | 説明 |
+|---|---|
+| `sensor.smart_meter_power` | 瞬時電力 W（正=買電, 負=売電） |
+| `sensor.smart_meter_cumulative_buy` | 累積買電量 kWh |
+| `sensor.smart_meter_cumulative_sell` | 累積売電量 kWh |
+| `binary_sensor.smart_meter_online` | デバイス接続状態 |
+
+詳細は [homeassistant/README.md](../homeassistant/README.md) を参照。
+
 ## 依存ライブラリ
 
 | ライブラリ | バージョン | 用途 |

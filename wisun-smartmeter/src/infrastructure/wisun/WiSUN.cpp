@@ -118,7 +118,11 @@ bool WiSUN::panaAuth() {
     delay(500);
 
     // Start PANA authentication
-    _modem.sendCommand("SKJOIN " + _panaAddress, 1000);
+    String joinRes = _modem.sendCommand("SKJOIN " + _panaAddress, 1000);
+    if (joinRes.indexOf("FAIL") >= 0) {
+        Serial.printf("[WiSUN] SKJOIN failed: %s\n", joinRes.c_str());
+        return false;
+    }
 
     // Wait for EVENT 25 (success) or EVENT 24 (failure)
     unsigned long authStart = millis();
@@ -158,11 +162,17 @@ bool WiSUN::reconnect() {
     _modem.sendCommand("SKTERM", 3000);
     delay(1000);
 
-    // Try cached scan first, then full reconnect
-    if (loadCache()) {
-        if (panaAuth()) return true;
+    // Retry PANA auth with in-memory cache (no scan needed)
+    if (_channel.length() > 0 && _panId.length() > 0 && _macAddr.length() > 0) {
+        for (int i = 0; i < 2; i++) {
+            if (panaAuth()) return true;
+            Serial.printf("[WiSUN] Reconnect auth attempt %d failed\n", i + 1);
+            _modem.sendCommand("SKTERM", 3000);
+            delay(1000);
+        }
     }
 
+    // All quick retries failed — full reconnect with scan
     clearCache();
     return connect();
 }

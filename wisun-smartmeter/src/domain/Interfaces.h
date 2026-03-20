@@ -34,5 +34,6 @@ public:
 // Shows meter status on a screen
 class IDisplay : public ILogger {
 public:
-    virtual void showStatus(bool meterOk, const MeterData& data, bool publisherOk) = 0;
+    virtual void showStatus(bool meterOk, const MeterData& data, bool publisherOk,
+                            const char* statusMsg = nullptr) = 0;
 };

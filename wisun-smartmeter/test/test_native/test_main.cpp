@@ -46,11 +46,13 @@ public:
     MeterData lastData;
 
     void log(const char* msg, Level level = INFO) override { (void)msg; (void)level; }
-    void showStatus(bool meterOk, const MeterData& d, bool publisherOk) override {
+    void showStatus(bool meterOk, const MeterData& d, bool publisherOk,
+                    const char* statusMsg = nullptr) override {
         showStatusCount++;
         lastMeterOk = meterOk;
         lastPublisherOk = publisherOk;
         lastData = d;
+        (void)statusMsg;
     }
 };
 

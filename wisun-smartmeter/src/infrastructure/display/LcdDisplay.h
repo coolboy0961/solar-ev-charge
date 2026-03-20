@@ -12,7 +12,8 @@ public:
     void log(const char* msg, Level level = INFO) override;
 
     // IDisplay
-    void showStatus(bool meterOk, const MeterData& data, bool publisherOk) override;
+    void showStatus(bool meterOk, const MeterData& data, bool publisherOk,
+                    const char* statusMsg = nullptr) override;
 
     void showDebug(bool meterOk, const String& ipv6, const MeterData& data,
                    bool publisherOk, const String& channel, const String& panId);

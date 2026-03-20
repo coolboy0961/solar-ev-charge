@@ -52,7 +52,8 @@ void LcdDisplay::drawBattery() {
     M5.Lcd.printf("%3d%%", pct);
 }
 
-void LcdDisplay::showStatus(bool meterOk, const MeterData& data, bool publisherOk) {
+void LcdDisplay::showStatus(bool meterOk, const MeterData& data, bool publisherOk,
+                            const char* statusMsg) {
     M5.Lcd.fillScreen(BLACK);
     M5.Lcd.setTextSize(1);
 
@@ -62,7 +63,10 @@ void LcdDisplay::showStatus(bool meterOk, const MeterData& data, bool publisherO
     drawBattery();
 
     M5.Lcd.setCursor(5, 25);
-    if (meterOk) {
+    if (statusMsg) {
+        M5.Lcd.setTextColor(YELLOW);
+        M5.Lcd.println(statusMsg);
+    } else if (meterOk) {
         M5.Lcd.setTextColor(GREEN);
         M5.Lcd.println("Connected");
     } else {

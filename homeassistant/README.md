@@ -171,6 +171,8 @@ target     = clamp((solarpower - 400W) / 200V, 5A, 24A)
 | `sensor.tesla_charging_power_w` | 充電電力 W | `V × A` (state_class: measurement) |
 | `sensor.home_consumption_power` | 家庭消費 W | `solar - battery + grid` |
 | `sensor.ep_cube_battery_power_display` | バッテリー表示用 W | ECHONET Lite 値 × -1 (正=放電) |
+| `sensor.tesla_battery_energy` | Tesla バッテリー kWh | `charge_level% × 0.75` (75kWh 容量) |
+| `sensor.ep_cube_battery_energy` | EP Cube バッテリー kWh | `SOC% × 0.133` (13.3kWh 容量) |
 | `binary_sensor.solar_surplus_charging_available` | 充電条件成立 | 余剰>=1200W & プラグ接続 & バッテリー<上限 |
 
 ### Riemann 積分センサー

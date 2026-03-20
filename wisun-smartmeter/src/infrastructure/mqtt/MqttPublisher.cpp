@@ -58,11 +58,16 @@ void MqttPublisher::connectMQTT() {
     if (_mqtt.connected()) return;
     bool connected;
     if (strlen(MQTT_USER) > 0) {
-        connected = _mqtt.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD);
+        connected = _mqtt.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD,
+                                  MQTT_TOPIC_STATUS, 1, true, "offline");
     } else {
-        connected = _mqtt.connect(MQTT_CLIENT_ID);
+        connected = _mqtt.connect(MQTT_CLIENT_ID, NULL, NULL,
+                                  MQTT_TOPIC_STATUS, 1, true, "offline");
     }
     if (connected) {
         _mqtt.publish(MQTT_TOPIC_STATUS, "online", true);
+        if (_logger) _logger->log("MQTT connected", ILogger::SUCCESS);
+    } else {
+        if (_logger) _logger->log("MQTT connect failed", ILogger::ERROR);
     }
 }

@@ -34,8 +34,8 @@ M5Stack NanoC6            │                   │          M5StickC Plus
 
 | データ | ソース | プロトコル | 更新頻度 |
 |--------|--------|-----------|----------|
-| 系統電力 (W) | スマートメーター | Wi-SUN B Route → MQTT | 10秒 |
-| 累積買電/売電 (kWh) | スマートメーター | Wi-SUN B Route → MQTT | 5分 |
+| 系統電力 (W) | スマートメーター | Wi-SUN B Route → MQTT | 30秒 |
+| 累積買電/売電 (kWh) | スマートメーター | Wi-SUN B Route → MQTT | 30秒 |
 | ソーラー発電 (W) | EP Cube | ECHONET Lite (LAN) | 自動 |
 | バッテリー充放電 (W) | EP Cube | ECHONET Lite (LAN) | 自動 |
 | バッテリーSOC (%) | EP Cube | ECHONET Lite (LAN) | 自動 |

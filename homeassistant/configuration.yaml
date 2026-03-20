@@ -107,6 +107,28 @@ template:
           {% set a = states('sensor.tesla_ble_charge_current') | float(0) %}
           {{ (v * a) | round(0) }}
 
+      # Tesla battery energy (kWh) from percentage
+      - name: "Tesla Battery Energy"
+        unique_id: tesla_battery_energy_kwh
+        unit_of_measurement: "kWh"
+        device_class: energy_storage
+        state: >
+          {% set pct = states('sensor.tesla_ble_charge_level') | float(0) %}
+          {{ (pct * 0.75) | round(1) }}
+        availability: >
+          {{ states('sensor.tesla_ble_charge_level') | is_number }}
+
+      # EP Cube battery energy (kWh) from percentage
+      - name: "EP Cube Battery Energy"
+        unique_id: epcube_battery_energy_kwh
+        unit_of_measurement: "kWh"
+        device_class: energy_storage
+        state: >
+          {% set pct = states('sensor.ep_cube_remaining_stored_electricity_3') | float(0) %}
+          {{ (pct * 0.133) | round(1) }}
+        availability: >
+          {{ states('sensor.ep_cube_remaining_stored_electricity_3') | is_number }}
+
   - binary_sensor:
       - name: "Solar Surplus Charging Available"
         unique_id: solar_surplus_charging_available

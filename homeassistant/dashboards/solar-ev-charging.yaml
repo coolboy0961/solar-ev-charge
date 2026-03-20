@@ -79,9 +79,8 @@ views:
             display_zero: true
             display_zero_state: true
             secondary_info:
-              entity: sensor.tesla_ble_charge_level
-              unit_of_measurement: "%"
-              decimals: 0
+              entity: sensor.tesla_battery_energy
+              decimals: 1
         wh_decimals: 1
         kwh_decimals: 1
 

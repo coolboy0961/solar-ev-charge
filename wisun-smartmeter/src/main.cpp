@@ -27,8 +27,8 @@ void setup() {
     Serial.begin(115200);
 
     // Inject logger into infrastructure
-    modem.setLogger(&display);
     modem.begin();
+    wisun.setLogger(&display);
 
     // Network
     publisher.begin(&display);
@@ -53,7 +53,7 @@ void loop() {
 
     // Reconnect if ECHONET Lite responses are timing out consecutively
     if (wisun.isConnected() && meter.session().isSessionLost()) {
-        display.log("Session lost, reconnecting...", ILogger::WARNING);
+        display.log("Session lost", ILogger::ERROR);
         publisher.publish(meter.getData());  // publish last known data
         if (wisun.reconnect()) {
             display.log("Reconnected!", ILogger::SUCCESS);

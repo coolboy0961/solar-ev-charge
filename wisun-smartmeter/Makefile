@@ -1,6 +1,6 @@
 PIO ?= $(shell command -v pio 2>/dev/null || echo /tmp/pio_env/bin/pio)
 
-.PHONY: test build flash monitor clean all
+.PHONY: test build flash monitor monitor-log clean all
 
 ## Run unit tests (native, no hardware needed)
 test:
@@ -17,6 +17,10 @@ flash:
 ## Serial monitor (115200 baud)
 monitor:
 	$(PIO) device monitor -b 115200
+
+## Serial monitor with timestamp, logged to file
+monitor-log:
+	$(PIO) device monitor -b 115200 -f time 2>&1 | tee /tmp/wisun-monitor.log
 
 ## Flash + monitor
 flash-monitor: flash monitor

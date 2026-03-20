@@ -40,6 +40,7 @@ void WiSUN::clearCache() {
 // --- Module Initialization ---
 
 bool WiSUN::init() {
+    if (_logger) _logger->log("Modem reset...", ILogger::INFO);
     _modem.sendCommand("SKRESET", 3000);
     delay(1000);
 
@@ -72,6 +73,7 @@ bool WiSUN::init() {
 // --- Active Scan ---
 
 bool WiSUN::scan() {
+    if (_logger) _logger->log("Scanning...", ILogger::WARNING);
     for (int duration = 4; duration <= 7; duration++) {
         _modem.sendCommand("SKSCAN 2 FFFFFFFF " + String(duration), 1000);
 
@@ -90,6 +92,7 @@ bool WiSUN::scan() {
             _macAddr = result.substring(addrIdx + 5, result.indexOf("\r", addrIdx));
             _macAddr.trim();
 
+            if (_logger) _logger->log("Meter found!", ILogger::SUCCESS);
             saveCache();
             return true;
         }
@@ -100,6 +103,7 @@ bool WiSUN::scan() {
 // --- PANA Authentication ---
 
 bool WiSUN::panaAuth() {
+    if (_logger) _logger->log("Authenticating...", ILogger::WARNING);
     _modem.sendCommand("SKSREG S2 " + _channel, 3000);
     delay(500);
     _modem.sendCommand("SKSREG S3 " + _panId, 3000);
@@ -128,8 +132,10 @@ bool WiSUN::panaAuth() {
                 line.trim();
                 if (line.indexOf("EVENT 25") >= 0) {
                     _connected = true;
+                    if (_logger) _logger->log("Authenticated!", ILogger::SUCCESS);
                     return true;
                 } else if (line.indexOf("EVENT 24") >= 0) {
+                    if (_logger) _logger->log("Auth failed", ILogger::ERROR);
                     return false;
                 }
                 line = "";
@@ -148,6 +154,7 @@ bool WiSUN::reconnect() {
     _connected = false;
 
     // Terminate stale session
+    if (_logger) _logger->log("Reconnecting...", ILogger::WARNING);
     _modem.sendCommand("SKTERM", 3000);
     delay(1000);
 

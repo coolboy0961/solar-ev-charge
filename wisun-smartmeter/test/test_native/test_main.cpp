@@ -292,6 +292,49 @@ void test_build_frame_sell() {
     TEST_ASSERT_EQUAL_STRING("1081000105FF010288016201E300", buf);
 }
 
+void test_build_multi_frame_all_three() {
+    // Arrange
+    char buf[128];
+    const uint8_t epcs[] = { 0xE7, 0xE0, 0xE3 };
+
+    // Act
+    EchonetLiteParser::buildMultiFrame(epcs, 3, buf, sizeof(buf));
+
+    // Assert — OPC=03, then E7/00, E0/00, E3/00
+    TEST_ASSERT_EQUAL_STRING("1081000105FF010288016203E700E000E300", buf);
+}
+
+void test_build_multi_frame_single() {
+    // Arrange
+    char buf[128];
+    const uint8_t epcs[] = { 0xE7 };
+
+    // Act
+    EchonetLiteParser::buildMultiFrame(epcs, 1, buf, sizeof(buf));
+
+    // Assert — OPC=01, same as buildFrame
+    TEST_ASSERT_EQUAL_STRING("1081000105FF010288016201E700", buf);
+}
+
+void test_parse_multi_property_response() {
+    // Arrange — response with OPC=03: E7(52W) + E0(12017=1201.7kWh) + E3(22966=2296.6kWh)
+    MeterData data;
+    const char* hex = "1081000102880105FF017203E70400000034E00400002EF1E304000059B6";
+    int len = strlen(hex);
+
+    // Act
+    bool ok = EchonetLiteParser::parseFrame(hex, len, data);
+
+    // Assert
+    TEST_ASSERT_TRUE(ok);
+    TEST_ASSERT_TRUE(data.powerValid);
+    TEST_ASSERT_EQUAL_INT32(52, data.power);
+    TEST_ASSERT_TRUE(data.buyEnergyValid);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 1201.7f, data.buyEnergy);
+    TEST_ASSERT_TRUE(data.sellEnergyValid);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 2296.6f, data.sellEnergy);
+}
+
 // =============================================================
 // Domain: EchonetLiteParser — regression / scenario tests
 // =============================================================
@@ -660,6 +703,11 @@ int main(int argc, char** argv) {
     RUN_TEST(test_build_frame_power);
     RUN_TEST(test_build_frame_buy);
     RUN_TEST(test_build_frame_sell);
+
+    // Domain: EchonetLiteParser — buildMultiFrame
+    RUN_TEST(test_build_multi_frame_all_three);
+    RUN_TEST(test_build_multi_frame_single);
+    RUN_TEST(test_parse_multi_property_response);
 
     // Domain: EchonetLiteParser — regression
     RUN_TEST(test_startup_e0_timeout_e3_ok_does_not_publish_buy);

@@ -9,49 +9,35 @@ const MeterData& EchonetLiteMeter::getData() const { return _data; }
 // --- Polling ---
 
 bool EchonetLiteMeter::poll() {
-    if (millis() - _lastPowerRead < POWER_READ_INTERVAL) return false;
+    if (millis() - _lastPoll < POLL_INTERVAL) return false;
 
-    bool needEnergy = (_lastEnergyRead == 0) ||
-                      (millis() - _lastEnergyRead >= ENERGY_READ_INTERVAL);
-
-    bool anySuccess = false;
-
-    // Instantaneous power (EPC 0xE7)
     delay(1000);
-    if (requestSync(0xE7)) anySuccess = true;
+    const uint8_t epcs[] = { 0xE7, 0xE0, 0xE3 };
+    bool success = requestSyncMulti(epcs, 3);
 
-    // Cumulative energy: buy (0xE0) + sell (0xE3)
-    if (needEnergy) {
-        delay(1000);
-        if (requestSync(0xE0)) anySuccess = true;
-        delay(1000);
-        if (requestSync(0xE3)) anySuccess = true;
-        _lastEnergyRead = millis();
-    }
-
-    if (anySuccess) {
+    if (success) {
         _session.recordSuccess();
     } else {
         _session.recordFailure();
         Serial.printf("[ECHONET] Poll failed (consecutive=%d/%d)\n",
-                      _session.failureCount(), 3);
+                      _session.failureCount(), 1);
     }
 
-    _lastPowerRead = millis();
+    _lastPoll = millis();
     return true;
 }
 
 // --- Synchronous Request ---
 
-bool EchonetLiteMeter::requestSync(uint8_t epc, unsigned long timeout) {
+bool EchonetLiteMeter::requestSyncMulti(const uint8_t* epcs, int count, unsigned long timeout) {
     _modem.flush();
 
-    char frame[64];
-    EchonetLiteParser::buildFrame(epc, frame, sizeof(frame));
+    char frame[128];
+    EchonetLiteParser::buildMultiFrame(epcs, count, frame, sizeof(frame));
     int frameLen = strlen(frame);
     int dataLen = frameLen / 2;
 
-    uint8_t binData[32];
+    uint8_t binData[64];
     for (int i = 0; i < dataLen; i++) {
         char byteStr[3] = { frame[i * 2], frame[i * 2 + 1], '\0' };
         binData[i] = (uint8_t)strtoul(byteStr, NULL, 16);
@@ -62,7 +48,7 @@ bool EchonetLiteMeter::requestSync(uint8_t epc, unsigned long timeout) {
              _panaAddress.c_str(), dataLen);
 
     _modem.sendRaw(cmdBuf, binData, dataLen);
-    Serial.printf("[ECHONET TX] EPC=0x%02X\n", epc);
+    Serial.printf("[ECHONET TX] Multi OPC=%d\n", count);
 
     // Wait for ERXUDP response
     String response = "";
@@ -81,12 +67,12 @@ bool EchonetLiteMeter::requestSync(uint8_t epc, unsigned long timeout) {
             return true;
         }
         if (response.indexOf("FAIL") >= 0) {
-            Serial.printf("[ECHONET] FAIL for EPC=0x%02X\n", epc);
+            Serial.printf("[ECHONET] FAIL for Multi OPC=%d\n", count);
             return false;
         }
         delay(10);
     }
-    Serial.printf("[ECHONET] Timeout EPC=0x%02X\n", epc);
+    Serial.printf("[ECHONET] Timeout Multi OPC=%d\n", count);
     return false;
 }
 

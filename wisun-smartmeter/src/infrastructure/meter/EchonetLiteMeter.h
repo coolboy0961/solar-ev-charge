@@ -23,11 +23,10 @@ private:
     BP35A1& _modem;
     String _panaAddress;
     MeterData _data;
-    SessionMonitor _session{3};
+    SessionMonitor _session{1};
 
-    unsigned long _lastPowerRead = 0;
-    unsigned long _lastEnergyRead = 0;
+    unsigned long _lastPoll = 0;
 
-    bool requestSync(uint8_t epc, unsigned long timeout = 10000);
+    bool requestSyncMulti(const uint8_t* epcs, int count, unsigned long timeout = 10000);
     void parseResponse(const String& data);
 };

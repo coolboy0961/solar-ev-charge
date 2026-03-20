@@ -75,4 +75,14 @@ inline int buildFrame(uint8_t epc, char* buf, int bufSize) {
     return snprintf(buf, bufSize, "1081000105FF010288016201%02X00", epc);
 }
 
+// Build ECHONET Lite Get request frame for multiple EPCs
+// Returns hex string length written to buf
+inline int buildMultiFrame(const uint8_t* epcs, int count, char* buf, int bufSize) {
+    int pos = snprintf(buf, bufSize, "1081000105FF0102880162%02X", count);
+    for (int i = 0; i < count && pos < bufSize - 4; i++) {
+        pos += snprintf(buf + pos, bufSize - pos, "%02X00", epcs[i]);
+    }
+    return pos;
+}
+
 } // namespace EchonetLiteParser

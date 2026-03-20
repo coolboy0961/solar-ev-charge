@@ -25,6 +25,5 @@
 // =============================================================
 // Timing
 // =============================================================
-#define POWER_READ_INTERVAL 30000   // Read power every 30 seconds
-#define ENERGY_READ_INTERVAL 60000  // Read cumulative energy every 60 seconds
+#define POLL_INTERVAL 30000         // Read all meters every 30 seconds
 #define MQTT_RECONNECT_INTERVAL 5000

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Preferences.h>
+#include "domain/Interfaces.h"
 #include "infrastructure/driver/BP35A1.h"
 
 // Wi-SUN B-Route connection manager
@@ -9,6 +10,7 @@ class WiSUN {
 public:
     WiSUN(BP35A1& modem);
 
+    void setLogger(ILogger* logger) { _logger = logger; }
     bool connect();
     bool reconnect();
     bool isConnected() const;
@@ -21,6 +23,7 @@ public:
 
 private:
     BP35A1& _modem;
+    ILogger* _logger = nullptr;
     Preferences _prefs;
 
     String _channel;

@@ -7,6 +7,7 @@ void MqttPublisher::begin(ILogger* logger) {
     connectWiFi();
     _mqtt.setServer(MQTT_SERVER, MQTT_PORT);
     _mqtt.setBufferSize(512);
+    _mqtt.setKeepAlive(60);
     connectMQTT();
 }
 

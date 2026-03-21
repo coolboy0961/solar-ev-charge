@@ -236,12 +236,12 @@
         value: 5
     - delay:
         seconds: 2
-    - service: switch.turn_on
-      target:
-        entity_id: switch.tesla_ble_charger
     - service: timer.start
       target:
         entity_id: timer.solar_guard
+    - service: switch.turn_on
+      target:
+        entity_id: switch.tesla_ble_charger
     - service: timer.start
       target:
         entity_id: timer.solar_stabilize

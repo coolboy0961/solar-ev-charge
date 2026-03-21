@@ -47,9 +47,6 @@
            | map('as_timestamp')
            | map('int')
            | min > (now() | as_timestamp | int) - 300 }}
-    # Skip if guard timer active (just turned ON/OFF)
-    - condition: template
-      value_template: "{{ is_state('timer.solar_guard', 'idle') }}"
     # Skip if stabilize timer active (just changed amps)
     - condition: template
       value_template: "{{ is_state('timer.solar_stabilize', 'idle') }}"
@@ -172,6 +169,10 @@
                 - conditions:
                     - condition: template
                       value_template: "{{ surplus >= 1200 }}"
+                    # Guard must be idle to start charging
+                    - condition: state
+                      entity_id: timer.solar_guard
+                      state: "idle"
                   sequence:
                     - if:
                         - condition: state

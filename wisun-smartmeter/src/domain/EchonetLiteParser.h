@@ -50,7 +50,7 @@ inline bool parseFrame(const char* hexData, int hexLen, MeterData& data) {
         pos += 4 + propDataLen;
 
         if (strcmp(epcStr, "E7") == 0 && pdc == 4) {
-            int32_t power = (int32_t)strtol(propData, NULL, 16);
+            int32_t power = (int32_t)strtoul(propData, NULL, 16);
             if (power >= -POWER_MAX && power <= POWER_MAX) {
                 data.power = power;
                 data.powerValid = true;

@@ -161,6 +161,21 @@ void test_parse_negative_power() {
     TEST_ASSERT_TRUE(data.powerValid);
 }
 
+void test_parse_negative_power_large() {
+    // Arrange: power = -3240W (0xFFFFF358) — selling 3.2kW to grid
+    // This hex value exceeds LONG_MAX on 32-bit; strtol would overflow
+    const char* hex = "10810001028801" "05FF01" "72" "01" "E7" "04" "FFFFF358";
+    MeterData data;
+
+    // Act
+    bool ok = parseHex(hex, data);
+
+    // Assert
+    TEST_ASSERT_TRUE(ok);
+    TEST_ASSERT_EQUAL_INT32(-3240, data.power);
+    TEST_ASSERT_TRUE(data.powerValid);
+}
+
 void test_parse_buy_energy() {
     // Arrange: E0 response, 12008 * 0.1 = 1200.8 kWh (0x00002EE8)
     const char* hex = "10810001028801" "05FF01" "72" "01" "E0" "04" "00002EE8";
@@ -693,6 +708,7 @@ int main(int argc, char** argv) {
     // Domain: EchonetLiteParser — parseFrame
     RUN_TEST(test_parse_power_response);
     RUN_TEST(test_parse_negative_power);
+    RUN_TEST(test_parse_negative_power_large);
     RUN_TEST(test_parse_buy_energy);
     RUN_TEST(test_parse_sell_energy);
     RUN_TEST(test_parse_power_out_of_range);

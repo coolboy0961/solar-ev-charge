@@ -61,6 +61,7 @@ void loop() {
             meter.session().reset();
         }
         wisun.setLogger(&display);
+        publisher.loop();  // restore MQTT after blocking reconnect
         display.showStatus(wisun.isConnected(), meter.getData(), publisher.isConnected());
     }
 

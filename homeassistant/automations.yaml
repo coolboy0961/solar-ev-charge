@@ -34,7 +34,7 @@
       value_template: >
         {{ states('sensor.tesla_ble_charge_level') | float(100)
            < states('number.tesla_ble_charging_limit') | float(80) }}
-    # Skip if any critical sensor is stale (>3min old)
+    # Skip if any critical sensor is stale (>5min old)
     - condition: template
       value_template: >
         {% set sensors = [
@@ -45,7 +45,7 @@
         {{ sensors | map(attribute='last_updated')
            | map('as_timestamp')
            | map('int')
-           | min > (now() | as_timestamp | int) - 180 }}
+           | min > (now() | as_timestamp | int) - 300 }}
     # Skip if guard timer active (just turned ON/OFF)
     - condition: template
       value_template: "{{ is_state('timer.solar_guard', 'idle') }}"
@@ -462,3 +462,28 @@
           Solar charging GUARD: charger turned off on cable plug-in,
           waiting for surplus (solar_charging_enabled=on)
         level: info
+
+# =============================================================================
+# EP Cube ECHONET Lite Auto-Reload
+# If EP Cube sensors stop updating for 4 minutes, reload the integration
+# =============================================================================
+- id: ep_cube_echonetlite_auto_reload
+  alias: "EP Cube - Auto Reload ECHONET Lite"
+  mode: single
+  trigger:
+    - platform: time_pattern
+      minutes: "/1"
+  condition:
+    - condition: template
+      value_template: >
+        {% set last = states.sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated.last_updated %}
+        {{ (now() - last).total_seconds() > 240 }}
+  action:
+    - service: homeassistant.reload_config_entry
+      data:
+        entry_id: 01KKVMVSX8ACBB5VP1DC844FXV
+    - service: system_log.write
+      data:
+        message: >
+          EP Cube ECHONET Lite auto-reloaded: sensor stale for >4min
+        level: warning

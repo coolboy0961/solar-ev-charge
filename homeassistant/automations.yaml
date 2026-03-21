@@ -476,8 +476,15 @@
   condition:
     - condition: template
       value_template: >
-        {% set last = states.sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated.last_updated %}
-        {{ (now() - last).total_seconds() > 240 }}
+        {% set sensors = [
+          states.sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated,
+          states.sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy,
+          states.sensor.ep_cube_remaining_stored_electricity_3
+        ] %}
+        {% set stale = sensors | selectattr('last_updated', 'defined')
+           | map(attribute='last_updated') | map('as_timestamp')
+           | select('lt', (now() | as_timestamp) - 240) | list %}
+        {{ stale | length > 0 }}
   action:
     - service: homeassistant.reload_config_entry
       data:
@@ -486,4 +493,7 @@
       data:
         message: >
           EP Cube ECHONET Lite auto-reloaded: sensor stale for >4min
+          (generation={{ states.sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated.last_updated }},
+           charge={{ states.sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy.last_updated }},
+           soc={{ states.sensor.ep_cube_remaining_stored_electricity_3.last_updated }})
         level: warning

@@ -436,6 +436,36 @@
         entity_id: timer.solar_stabilize
 
 # =============================================================================
+# Cable unplugged: Cancel all charging timers to prevent stale state
+# =============================================================================
+- id: solar_surplus_cable_unplugged_cleanup
+  alias: "Solar Surplus - Cable Unplugged Cleanup"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.tesla_ble_charge_flap
+      to: "off"
+  condition:
+    - condition: state
+      entity_id: input_boolean.solar_charging_enabled
+      state: "on"
+  action:
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_enable_delay
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_disable_delay
+    - service: timer.cancel
+      target:
+        entity_id: timer.solar_stabilize
+    - service: system_log.write
+      data:
+        message: >
+          Solar charging CLEANUP: cable unplugged, all timers cancelled
+        level: info
+
+# =============================================================================
 # Cable plugged in while solar mode: Turn off charger to wait for surplus
 # =============================================================================
 - id: solar_surplus_cable_plugged_guard
@@ -453,6 +483,9 @@
     - condition: state
       entity_id: timer.solar_guard
       state: "idle"
+    # Only guard if surplus is insufficient (allow charging when conditions are met)
+    - condition: template
+      value_template: "{{ states('sensor.solar_surplus_power') | float(0) < 1200 }}"
   action:
     - service: switch.turn_off
       target:

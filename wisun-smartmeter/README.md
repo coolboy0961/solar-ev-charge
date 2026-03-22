@@ -176,6 +176,66 @@ MQTT: OK (緑) / Disconnected (赤)
 | `MQTT_RECONNECT_INTERVAL` | 5000 (5秒) | MQTT 再接続間隔 |
 | `BP35A1_BAUD` | 115200 | BP35A1 ボーレート |
 
+## 環境構築
+
+### 1. PlatformIO CLI のインストール
+
+```bash
+# Python 仮想環境に PlatformIO をインストール
+python3 -m venv /tmp/pio_env
+/tmp/pio_env/bin/pip install platformio
+
+# パスを通す（または Makefile が自動で /tmp/pio_env/bin/pio を使用）
+export PATH="/tmp/pio_env/bin:$PATH"
+
+# インストール確認
+pio --version
+```
+
+> **Homebrew の場合**: `brew install platformio` でもインストール可能。
+
+### 2. secrets.h の作成
+
+```bash
+cd wisun-smartmeter/src
+cp secrets.example.h secrets.h
+```
+
+`secrets.h` を編集して、WiFi・MQTT・Bルート認証情報を設定:
+
+```c
+#define WIFI_SSID "your_wifi_ssid"
+#define WIFI_PASSWORD "your_wifi_password"
+#define MQTT_USER ""
+#define MQTT_PASSWORD ""
+#define BROUTE_ID "your_32_char_hex_id"
+#define BROUTE_PASSWORD "your_12_char_password"
+```
+
+> **Bルート認証情報**: 電力会社（TEPCO 等）への申請が必要。申請から発行まで数日かかる。
+
+### 3. USB ドライバ（macOS の場合）
+
+M5StickC Plus は CP2104 USB-UART チップを使用。macOS では追加ドライバが必要な場合がある:
+
+```bash
+brew install --cask silicon-labs-vcp-driver
+```
+
+デバイスが `/dev/tty.usbserial-*` として認識されることを確認。
+
+### 4. 動作確認
+
+```bash
+cd wisun-smartmeter
+
+# テストが通ることを確認（ハードウェア不要）
+make test
+
+# ビルドできることを確認
+make build
+```
+
 ## ビルド & フラッシュ
 
 ```bash

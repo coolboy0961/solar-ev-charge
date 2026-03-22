@@ -34,19 +34,21 @@
       value_template: >
         {{ states('sensor.tesla_ble_charge_level') | float(100)
            < states('number.tesla_ble_charging_limit') | float(80) }}
-    # Skip if any critical sensor is stale (>5min old)
+    # Skip if Wi-SUN smart meter is stale (>5min old)
     - condition: template
       value_template: >
-        {% set sensors = [
-          states.sensor.smart_meter_power,
+        {{ (now() | as_timestamp | int)
+           - (states.sensor.smart_meter_power.last_updated | as_timestamp | int) < 300 }}
+    # Skip if any EP Cube sensor is unavailable (ECHONET Lite communication lost)
+    - condition: template
+      value_template: >
+        {% set ep_sensors = [
           states.sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated,
           states.sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy,
           states.sensor.ep_cube_remaining_stored_electricity_3
         ] %}
-        {{ sensors | map(attribute='last_updated')
-           | map('as_timestamp')
-           | map('int')
-           | min > (now() | as_timestamp | int) - 300 }}
+        {{ ep_sensors | map(attribute='state')
+           | select('eq', 'unavailable') | list | length == 0 }}
     # Skip if stabilize timer active (just changed amps)
     - condition: template
       value_template: "{{ is_state('timer.solar_stabilize', 'idle') }}"
@@ -476,17 +478,16 @@
     - platform: time_pattern
       minutes: "/1"
   condition:
+    # Reload if any EP Cube sensor is unavailable (ECHONET Lite communication lost)
     - condition: template
       value_template: >
-        {% set sensors = [
+        {% set ep_sensors = [
           states.sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated,
           states.sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy,
           states.sensor.ep_cube_remaining_stored_electricity_3
         ] %}
-        {% set stale = sensors | selectattr('last_updated', 'defined')
-           | map(attribute='last_updated') | map('as_timestamp')
-           | select('lt', (now() | as_timestamp) - 240) | list %}
-        {{ stale | length > 0 }}
+        {{ ep_sensors | map(attribute='state')
+           | select('eq', 'unavailable') | list | length > 0 }}
   action:
     - service: homeassistant.reload_config_entry
       data:

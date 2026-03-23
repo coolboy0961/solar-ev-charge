@@ -148,53 +148,164 @@ views:
   - title: History
     path: history
     icon: mdi:chart-line
+    type: panel
     cards:
-      # --- Power History (today) ---
-      - type: history-graph
-        title: Power Flow (Today)
-        hours_to_show: 24
-        entities:
-          - entity: sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated
-            name: Solar
-          - entity: sensor.solar_surplus_power
-            name: Surplus
-          - entity: sensor.solar_total_available_power
-            name: Total Available
-          - entity: sensor.tesla_charging_power_w
-            name: EV Charging
-          - entity: sensor.smart_meter_power
-            name: Grid
+      - type: vertical-stack
+        card_mod:
+          style: |
+            #root {
+              padding: 8px;
+            }
+        cards:
+          # --- Power History (today from midnight) ---
+          - type: custom:apexcharts-card
+            header:
+              title: Power Flow (Today)
+              show: true
+            graph_span: 24h
+            span:
+              start: day
+            apex_config:
+              chart:
+                height: 280
+              legend:
+                show: true
+              stroke:
+                curve: smooth
+                width: 1
+              fill:
+                opacity: 0.4
+              tooltip:
+                shared: true
+            series:
+              - entity: sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated
+                name: Solar
+                type: area
+                color: '#c6a033'
+                stroke_width: 1
+                show:
+                  legend_value: false
+              - entity: sensor.home_consumption_power
+                name: Home
+                type: area
+                color: '#a58fc2'
+                stroke_width: 1
+                show:
+                  legend_value: false
+              - entity: sensor.tesla_charging_power_w
+                name: EV Charging
+                type: area
+                color: '#e07050'
+                stroke_width: 1
+                show:
+                  legend_value: false
+              - entity: sensor.smart_meter_power
+                name: Grid
+                type: area
+                color: '#488fc2'
+                stroke_width: 1
+                show:
+                  legend_value: false
 
-      # --- Battery Levels ---
-      - type: history-graph
-        title: Battery Levels
-        hours_to_show: 24
-        entities:
-          - entity: sensor.tesla_ble_charge_level
-            name: Tesla Battery
-          - entity: sensor.ep_cube_remaining_stored_electricity_3
-            name: EP Cube Battery
+          # --- Battery Levels (today from midnight) ---
+          - type: custom:apexcharts-card
+            header:
+              title: Battery Levels (Today)
+              show: true
+            graph_span: 24h
+            span:
+              start: day
+            apex_config:
+              chart:
+                height: 200
+              legend:
+                show: true
+              stroke:
+                curve: smooth
+                width: 1
+              fill:
+                opacity: 0.4
+              tooltip:
+                shared: true
+            yaxis:
+              - min: 0
+                max: 100
+            series:
+              - entity: sensor.tesla_ble_charge_level
+                name: Tesla
+                type: area
+                color: '#e07050'
+                stroke_width: 1
+                show:
+                  legend_value: false
+              - entity: sensor.ep_cube_remaining_stored_electricity_3
+                name: EP Cube
+                type: area
+                color: '#488fc2'
+                stroke_width: 1
+                show:
+                  legend_value: false
 
-      # --- Charging Current ---
-      - type: history-graph
-        title: Charging Current
-        hours_to_show: 24
-        entities:
-          - entity: sensor.tesla_actual_charging_current
-            name: Actual Current
-          - entity: sensor.available_charging_amps
-            name: Available Amps
-          - entity: sensor.power_limit_amps
-            name: Power Limit Amps
-          - entity: sensor.effective_target_amps
-            name: Effective Target
+          # --- Charging Current (today from midnight) ---
+          - type: custom:apexcharts-card
+            header:
+              title: Charging Current (Today)
+              show: true
+            graph_span: 24h
+            span:
+              start: day
+            apex_config:
+              chart:
+                height: 250
+              legend:
+                show: true
+              stroke:
+                curve: smooth
+                width: 1
+              fill:
+                opacity: 0.4
+              tooltip:
+                shared: true
+            yaxis:
+              - min: 0
+            series:
+              - entity: sensor.tesla_actual_charging_current
+                name: Actual Current
+                type: area
+                color: '#e07050'
+                stroke_width: 1
+                show:
+                  legend_value: false
+              - entity: sensor.available_charging_amps
+                name: Available Amps
+                type: area
+                color: '#5faf6f'
+                stroke_width: 1
+                show:
+                  legend_value: false
+              - entity: sensor.power_limit_amps
+                name: Power Limit
+                type: line
+                color: '#a58fc2'
+                stroke_width: 1
+                stroke_dash: 4
+                show:
+                  legend_value: false
+              - entity: sensor.effective_target_amps
+                name: Target
+                type: line
+                color: '#c6a033'
+                stroke_width: 1
+                stroke_dash: 4
+                show:
+                  legend_value: false
 
-      # --- Device Energy Usage ---
-      - type: energy-date-selection
-      - type: energy-devices-detail-graph
-        title: Device Detail
-      - type: energy-devices-graph
-        title: Device Total
+          # --- Device Energy Usage ---
+          - type: energy-date-selection
+          - type: energy-devices-detail-graph
+            title: Device Detail
+          - type: energy-devices-graph
+            title: Device Total
 
   # ==========================================================================
   # System View: Diagnostics

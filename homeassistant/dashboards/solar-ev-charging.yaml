@@ -171,41 +171,32 @@ views:
               legend:
                 show: true
               stroke:
-                curve: smooth
                 width: 1
               fill:
                 opacity: 0.4
               tooltip:
                 shared: true
+            all_series_config:
+              type: area
+              curve: smooth
+              stroke_width: 1
+              extend_to: now
+              show:
+                legend_value: false
             series:
               - entity: sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated
                 name: Solar
-                type: area
                 color: '#c6a033'
-                stroke_width: 1
-                show:
-                  legend_value: false
               - entity: sensor.home_consumption_power
                 name: Home
-                type: area
                 color: '#a58fc2'
-                stroke_width: 1
-                show:
-                  legend_value: false
               - entity: sensor.tesla_charging_power_w
                 name: EV Charging
-                type: area
                 color: '#e07050'
-                stroke_width: 1
-                show:
-                  legend_value: false
+                curve: stepline
               - entity: sensor.smart_meter_power
                 name: Grid
-                type: area
                 color: '#488fc2'
-                stroke_width: 1
-                show:
-                  legend_value: false
 
           # --- Battery Levels (today from midnight) ---
           - type: custom:apexcharts-card
@@ -230,21 +221,20 @@ views:
             yaxis:
               - min: 0
                 max: 100
+            all_series_config:
+              type: area
+              curve: smooth
+              stroke_width: 1
+              extend_to: now
+              show:
+                legend_value: false
             series:
               - entity: sensor.tesla_ble_charge_level
                 name: Tesla
-                type: area
                 color: '#e07050'
-                stroke_width: 1
-                show:
-                  legend_value: false
               - entity: sensor.ep_cube_remaining_stored_electricity_3
                 name: EP Cube
-                type: area
                 color: '#488fc2'
-                stroke_width: 1
-                show:
-                  legend_value: false
 
           # --- Charging Current (today from midnight) ---
           - type: custom:apexcharts-card
@@ -266,23 +256,22 @@ views:
                 opacity: 0.4
               tooltip:
                 shared: true
+            all_series_config:
+              type: area
+              curve: smooth
+              stroke_width: 1
+              extend_to: now
+              show:
+                legend_value: false
             yaxis:
               - min: 0
             series:
               - entity: sensor.tesla_actual_charging_current
                 name: Actual Current
-                type: area
                 color: '#e07050'
-                stroke_width: 1
-                show:
-                  legend_value: false
               - entity: sensor.available_charging_amps
                 name: Available Amps
-                type: area
                 color: '#5faf6f'
-                stroke_width: 1
-                show:
-                  legend_value: false
               - entity: sensor.power_limit_amps
                 name: Power Limit
                 type: line

@@ -60,7 +60,10 @@
         current_amps: "{{ states('number.tesla_ble_charging_amps') | int(0) }}"
         voltage: 200
         base_load: 400
-        target: "{{ [[((solarpower - base_load) / voltage) | int, 5] | max, 24] | min }}"
+        power_limit_amps: "{{ states('sensor.power_limit_amps') | int(24) }}"
+        power_limit_enabled: "{{ is_state('input_boolean.power_limit_enabled', 'on') }}"
+        solar_target: "{{ [[((solarpower - base_load) / voltage) | int, 5] | max, 24] | min }}"
+        target: "{{ [[solar_target | int, power_limit_amps] | min, 5] | max }}"
     - choose:
         # === CHARGING: Adjust amps or prepare to stop ===
         - conditions:
@@ -68,6 +71,48 @@
               value_template: "{{ is_charging }}"
           sequence:
             - choose:
+                # POWER LIMIT: Even 5A exceeds limit → reduce to 5A and start disable delay
+                - conditions:
+                    - condition: template
+                      value_template: "{{ power_limit_enabled and power_limit_amps < 5 }}"
+                  sequence:
+                    # Immediately reduce to minimum 5A
+                    - if:
+                        - condition: template
+                          value_template: "{{ current_amps > 5 }}"
+                      then:
+                        - service: number.set_value
+                          target:
+                            entity_id: number.tesla_ble_charging_amps
+                          data:
+                            value: 5
+                        - service: timer.start
+                          target:
+                            entity_id: timer.solar_stabilize
+                          data:
+                            duration: "00:00:45"
+                        - service: system_log.write
+                          data:
+                            message: >
+                              Solar charging POWER LIMIT REDUCE: {{ current_amps }}A → 5A
+                              (power_limit_amps={{ power_limit_amps }}, home_consumption={{ states('sensor.home_consumption_power') }}W)
+                            level: warning
+                    # Start disable delay (even 5A exceeds limit)
+                    - if:
+                        - condition: state
+                          entity_id: timer.solar_disable_delay
+                          state: "idle"
+                      then:
+                        - service: timer.start
+                          target:
+                            entity_id: timer.solar_disable_delay
+                        - service: system_log.write
+                          data:
+                            message: >
+                              Solar charging POWER LIMIT: disable delay started
+                              (power_limit_amps={{ power_limit_amps }}, home_consumption={{ states('sensor.home_consumption_power') }}W)
+                            level: warning
+
                 # REDUCE: solar can't cover current charging + base load
                 - conditions:
                     - condition: template
@@ -144,7 +189,9 @@
                 # Ramp DOWN: only if diff >= 3A (deadband)
                 - if:
                     - condition: template
-                      value_template: "{{ current_amps - (target | int) >= 3 }}"
+                      value_template: >
+                        {{ current_amps - (target | int) >= 3
+                           or (power_limit_enabled and power_limit_amps < solar_target | int and current_amps > target | int) }}
                   then:
                     - service: number.set_value
                       target:
@@ -232,6 +279,11 @@
     - condition: state
       entity_id: timer.solar_guard
       state: "idle"
+    # Power limit must allow at least 5A
+    - condition: template
+      value_template: >
+        {{ is_state('input_boolean.power_limit_enabled', 'off')
+           or states('sensor.power_limit_amps') | int(24) >= 5 }}
   action:
     - service: number.set_value
       target:

@@ -103,6 +103,21 @@ views:
           - entity: sensor.available_charging_amps
             name: Available Amps
 
+      # --- Power Limit Control (sidebar) ---
+      - type: entities
+        title: Power Limit
+        view_layout:
+          position: sidebar
+        entities:
+          - entity: input_boolean.power_limit_enabled
+            name: Power Limit
+          - entity: input_number.power_limit_watts
+            name: Limit (W)
+          - entity: sensor.power_limit_amps
+            name: Limit Amps
+          - entity: sensor.effective_target_amps
+            name: Effective Target
+
       # --- Tesla Vehicle Status (sidebar) ---
       - type: entities
         title: Tesla Model 3
@@ -169,6 +184,10 @@ views:
             name: Actual Current
           - entity: sensor.available_charging_amps
             name: Available Amps
+          - entity: sensor.power_limit_amps
+            name: Power Limit Amps
+          - entity: sensor.effective_target_amps
+            name: Effective Target
 
       # --- Device Energy Usage ---
       - type: energy-date-selection

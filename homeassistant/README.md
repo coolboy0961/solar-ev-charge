@@ -70,9 +70,11 @@ HA を再起動すると、サイドバーに「EV」(アイコン: `mdi:car-ele
 - **充電停止/電流調整**: solarpower（ソーラー発電量） → EP Cube バッテリー補償による見かけ上の余剰を回避
 
 ```
-surplus    = smart_meter_power × -1                              (正=売電=余剰)
-solarpower = ep_cube_measured_instantaneous_amount_of_electricity_generated
-target     = clamp((solarpower - 400W) / 200V, 5A, 24A)
+surplus         = smart_meter_power × -1                          (正=売電=余剰)
+solarpower      = ep_cube_measured_instantaneous_amount_of_electricity_generated
+solar_target    = clamp((solarpower - 400W) / 200V, 5A, 24A)
+power_limit_amps = (power_limit - (home_consumption - ev_power)) / 200V  (0-24A)
+target          = max(min(solar_target, power_limit_amps), 5A)
 ```
 
 ### 制御フロー
@@ -88,6 +90,8 @@ target     = clamp((solarpower - 400W) / 200V, 5A, 24A)
     - stabilize timer idle (電流変更直後ではない)
 
   [充電中] choose 分岐 (上から順に評価、最初に一致した分岐のみ実行):
+    0. POWER LIMIT: power_limit_enabled AND power_limit_amps < 5A
+       → disable delay timer 開始 (5A でも制限超過 → 3分後停止)
     1. REDUCE: solarpower < (current_amps × 200V + 400W) AND amps > 5A
        → target A に変更 + stabilize 45秒
     2. LOW SOLAR: solarpower < 800W
@@ -96,14 +100,16 @@ target     = clamp((solarpower - 400W) / 200V, 5A, 24A)
        → disable delay timer キャンセル (動作中の場合)
        → IF target > current → set target + stabilize 45秒
        → IF current - target >= 3A → set target + stabilize 45秒 (デッドバンド)
+       ※ 電力制限がアクティブ制約の場合、デッドバンドなしで即減
 
   [非充電]
     IF surplus >= 1200W → enable delay timer 開始 (idle の場合のみ)
     ELSE → enable delay timer キャンセル
 
 別オートメーション:
-  [enable delay 満了]  → surplus > 1000W 再チェック → 5A で充電開始
-                         + guard timer (5分) + stabilize 1分
+  [enable delay 満了]  → surplus > 1000W 再チェック
+                         + power_limit_amps >= 5A チェック
+                         → 5A で充電開始 + guard timer (5分) + stabilize 1分
   [disable delay 満了] → 充電停止 + guard timer (5分)
   [低ソーラー停止] solarpower < 800W が 3分継続 → 即停止 + guard
   [緊急停止] surplus < -500W が 2分継続 → 即停止 + guard + 通知
@@ -133,12 +139,14 @@ target     = clamp((solarpower - 400W) / 200V, 5A, 24A)
 | 最小/最大電流 | 5A / 24A | automations.yaml |
 | 電圧 (計算用) | 200V | automations.yaml |
 | 制御ループ間隔 | 30秒 | automations.yaml |
+| 電力制限 | 5000W (1000-10000W) | configuration.yaml (input_number) |
 
 ### チューニングガイド
 
 - 充電機会を逃しすぎる場合: enable delay 1分→30秒、disable delay 3分→2分
 - まだ ON/OFF 繰り返す場合: disable delay 3分→5分、guard 5分→10分
 - 開始閾値: EP Cube 蓄電池の充放電パターンに応じて 1200W→1500W に調整
+- 電力制限が頻繁にトリガーされる場合: 制限値を 5000W→5500W に調整、またはベースロードの多い時間帯のみ有効にする
 
 ## エンティティ一覧
 
@@ -173,6 +181,8 @@ target     = clamp((solarpower - 400W) / 200V, 5A, 24A)
 | `sensor.ep_cube_battery_power_display` | バッテリー表示用 W | ECHONET Lite 値 × -1 (正=放電) |
 | `sensor.tesla_battery_energy` | Tesla バッテリー kWh | `charge_level% × 0.75` (75kWh 容量) |
 | `sensor.ep_cube_battery_energy` | EP Cube バッテリー kWh | `SOC% × 0.133` (13.3kWh 容量) |
+| `sensor.power_limit_amps` | 電力制限による最大充電電流 A | `(power_limit - non_ev_load) ÷ 200V` (0-24A) |
+| `sensor.effective_target_amps` | 最終目標電流 A | `min(available_amps, power_limit_amps)` |
 | `binary_sensor.solar_surplus_charging_available` | 充電条件成立 | 余剰>=1200W & プラグ接続 & バッテリー<上限 |
 
 ### Riemann 積分センサー
@@ -219,3 +229,9 @@ target     = clamp((solarpower - 400W) / 200V, 5A, 24A)
 - `timer.solar_disable_delay` が動作中か確認 (3分間のカウントダウン中)
 - `timer.solar_guard` が動作中か確認
 - `sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated` が 800W 未満か確認
+
+### 電力制限が効かない
+- `input_boolean.power_limit_enabled` が ON か確認
+- `sensor.power_limit_amps` の値を確認 (24A のままなら無効状態)
+- `sensor.home_consumption_power` が正しい値を表示しているか確認
+- 制限値 (`input_number.power_limit_watts`) が適切か確認

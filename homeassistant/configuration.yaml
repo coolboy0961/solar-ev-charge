@@ -118,6 +118,34 @@ template:
         availability: >
           {{ states('sensor.tesla_ble_charge_level') | is_number }}
 
+      # Max charging amps allowed by power limit
+      - name: "Power Limit Amps"
+        unique_id: power_limit_amps
+        unit_of_measurement: "A"
+        state: >
+          {% if is_state('input_boolean.power_limit_enabled', 'off') %}
+            24
+          {% else %}
+            {% set limit = states('input_number.power_limit_watts') | float(5000) %}
+            {% set total_load = states('sensor.home_consumption_power') | float(0) %}
+            {% set ev_power = states('sensor.tesla_charging_power_w') | float(0) %}
+            {% set non_ev_load = total_load - ev_power %}
+            {% set max_ev_power = [limit - non_ev_load, 0] | max %}
+            {% set amps = (max_ev_power / 200) | int %}
+            {{ [amps, 24] | min }}
+          {% endif %}
+        availability: >
+          {{ states('sensor.home_consumption_power') | is_number }}
+
+      # Effective target amps (min of solar target and power limit)
+      - name: "Effective Target Amps"
+        unique_id: effective_target_amps
+        unit_of_measurement: "A"
+        state: >
+          {% set solar_amps = states('sensor.available_charging_amps') | float(5) %}
+          {% set limit_amps = states('sensor.power_limit_amps') | float(24) %}
+          {{ [solar_amps, limit_amps] | min | int }}
+
       # EP Cube battery energy (kWh) from percentage
       - name: "EP Cube Battery Energy"
         unique_id: epcube_battery_energy_kwh
@@ -144,6 +172,21 @@ input_boolean:
   solar_charging_enabled:
     name: "Solar Surplus Charging Enabled"
     icon: mdi:solar-power
+  power_limit_enabled:
+    name: "Power Limit Enabled"
+    icon: mdi:speedometer
+
+# Home power limit (W)
+input_number:
+  power_limit_watts:
+    name: "Home Power Limit"
+    initial: 5000
+    min: 1000
+    max: 10000
+    step: 500
+    unit_of_measurement: "W"
+    icon: mdi:flash-alert
+    mode: slider
 
 # =============================================================
 # Solar Surplus EV Charging - Timers

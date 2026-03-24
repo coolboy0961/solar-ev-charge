@@ -93,12 +93,12 @@ target          = max(min(solar_target, power_limit_amps), 5A)
     0. POWER LIMIT: power_limit_enabled AND power_limit_amps < 5A
        → disable delay timer 開始 (5A でも制限超過 → 3分後停止)
     1. REDUCE: solarpower < (current_amps × 200V + 400W) AND amps > 5A
-       → target A に変更 + stabilize 45秒
+       → target A に変更 + stabilize 45秒 + reduce cooldown 90秒
     2. LOW SOLAR: solarpower < 800W
        → disable delay timer 開始 (idle の場合のみ)
     3. DEFAULT (十分な発電):
        → disable delay timer キャンセル (動作中の場合)
-       → IF target > current → set target + stabilize 45秒
+       → IF target > current AND reduce cooldown idle → set target + stabilize 45秒
        → IF current - target >= 3A → set target + stabilize 45秒 (デッドバンド)
        ※ 電力制限がアクティブ制約の場合、デッドバンドなしで即減
 
@@ -199,6 +199,7 @@ target          = max(min(solar_target, power_limit_amps), 5A)
 | `timer.solar_disable_delay` | 充電停止遅延 | 3分 |
 | `timer.solar_guard` | ON/OFF 切替ガード | 5分 |
 | `timer.solar_stabilize` | 電流変更後安定化待ち | 90秒 |
+| `timer.solar_reduce_cooldown` | REDUCE後のRAMP UPブロック | 90秒 |
 
 ## トラブルシューティング
 

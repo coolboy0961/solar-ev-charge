@@ -128,6 +128,9 @@
                         entity_id: timer.solar_stabilize
                       data:
                         duration: "00:00:45"
+                    - service: timer.start
+                      target:
+                        entity_id: timer.solar_reduce_cooldown
                     - service: system_log.write
                       data:
                         message: "Solar charging REDUCE: {{ current_amps }}A → {{ target }}A (solarpower={{ solarpower }}W)"
@@ -167,10 +170,10 @@
                       data:
                         message: "Solar charging disable delay cancelled (solarpower={{ solarpower }}W)"
                         level: info
-                # Ramp UP: jump straight to target
+                # Ramp UP: jump straight to target (blocked during reduce cooldown)
                 - if:
                     - condition: template
-                      value_template: "{{ target | int > current_amps }}"
+                      value_template: "{{ target | int > current_amps and is_state('timer.solar_reduce_cooldown', 'idle') }}"
                   then:
                     - service: number.set_value
                       target:

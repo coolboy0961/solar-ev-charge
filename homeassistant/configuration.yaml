@@ -208,6 +208,10 @@ timer:
     name: "Solar Charging Stabilize"
     duration: "00:01:30"
     icon: mdi:sine-wave
+  solar_reduce_cooldown:
+    name: "Solar Charging Reduce Cooldown"
+    duration: "00:01:30"
+    icon: mdi:timer-lock
 
 # =============================================================
 # Tesla EV Charging Energy (for Energy dashboard)

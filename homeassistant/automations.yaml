@@ -62,7 +62,7 @@
         base_load: 400
         power_limit_amps: "{{ states('sensor.power_limit_amps') | int(24) }}"
         power_limit_enabled: "{{ is_state('input_boolean.power_limit_enabled', 'on') }}"
-        solar_target: "{{ [[((solarpower - base_load) / voltage) | int, 5] | max, 24] | min }}"
+        solar_target: "{{ [[((surplus + current_amps * voltage - base_load) / voltage) | int, 5] | max, 24] | min }}"
         target: "{{ [[solar_target | int, power_limit_amps] | min, 5] | max }}"
     - choose:
         # === CHARGING: Adjust amps or prepare to stop ===

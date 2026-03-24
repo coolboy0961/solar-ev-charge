@@ -225,6 +225,15 @@ sensor:
     round: 2
     method: left
 
+  # Smoothed surplus power (90s moving average, ~3 Wi-SUN readings)
+  - platform: filter
+    name: "Solar Surplus Power Avg"
+    unique_id: solar_surplus_power_avg
+    entity_id: sensor.solar_surplus_power
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:01:30"
+
 # =============================================================
 # Dashboard (YAML mode)
 # =============================================================

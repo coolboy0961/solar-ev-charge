@@ -6,7 +6,7 @@
 #   surplus >= 1200W for 1min → Start at 5A (enable delay)
 #   solarpower < 800W for 3min → Stop (disable delay)
 #   Guard timer: 5min minimum between ON/OFF transitions
-#   Stabilize timer: 45s after amp change, 1min after start
+#   Stabilize timer: 60s after amp change, 1min after start
 #   Cable plugged in + solar mode ON → charger OFF (wait for surplus)
 #   Emergency: surplus < -500W for 2min → immediate stop
 #
@@ -92,7 +92,7 @@
                           target:
                             entity_id: timer.solar_stabilize
                           data:
-                            duration: "00:00:45"
+                            duration: "00:01:00"
                         - service: system_log.write
                           data:
                             message: >
@@ -129,7 +129,7 @@
                       target:
                         entity_id: timer.solar_stabilize
                       data:
-                        duration: "00:00:45"
+                        duration: "00:01:00"
                     - service: timer.start
                       target:
                         entity_id: timer.solar_reduce_cooldown
@@ -186,7 +186,7 @@
                       target:
                         entity_id: timer.solar_stabilize
                       data:
-                        duration: "00:00:45"
+                        duration: "00:01:00"
                     - service: system_log.write
                       data:
                         message: "Solar charging RAMP UP: {{ current_amps }}A → {{ clamped_target }}A (target={{ target }}A, solarpower={{ solarpower }}W)"
@@ -207,7 +207,7 @@
                       target:
                         entity_id: timer.solar_stabilize
                       data:
-                        duration: "00:00:45"
+                        duration: "00:01:00"
                     - service: system_log.write
                       data:
                         message: "Solar charging RAMP DOWN: {{ current_amps }}A → {{ clamped_target }}A (target={{ target }}A, solarpower={{ solarpower }}W)"

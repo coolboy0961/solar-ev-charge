@@ -75,6 +75,7 @@ solarpower      = ep_cube_measured_instantaneous_amount_of_electricity_generated
 solar_target    = clamp((solarpower - 400W) / 200V, 5A, 24A)
 power_limit_amps = (power_limit - (home_consumption - ev_power)) / 200V  (0-24A)
 target          = max(min(solar_target, power_limit_amps), 5A)
+clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階的変更)
 ```
 
 ### 制御フロー
@@ -128,6 +129,7 @@ target          = max(min(solar_target, power_limit_amps), 5A)
 | 充電停止判定 (solarpower) | 800W | automations.yaml (main loop + low solar) |
 | 開始電流 | 5A | automations.yaml |
 | Target 計算マージン (base_load) | 400W | automations.yaml |
+| 1サイクルあたり最大変更幅 | ±2A | automations.yaml (max_step) |
 | 下方向デッドバンド | 3A | automations.yaml |
 | 緊急停止 (買電超過) | 500W × 2分 | automations.yaml |
 | 低ソーラー停止 | 800W × 3分 | automations.yaml |

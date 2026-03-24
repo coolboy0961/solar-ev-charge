@@ -276,10 +276,10 @@
       value_template: >
         {{ states('sensor.tesla_ble_charge_level') | float(100)
            < states('number.tesla_ble_charging_limit') | float(80) }}
-    # Re-check surplus is still sufficient
+    # Re-check surplus is still sufficient (same as start threshold)
     - condition: numeric_state
-      entity_id: sensor.solar_surplus_power
-      above: 1000
+      entity_id: sensor.solar_surplus_power_avg
+      above: 1200
     # Guard must be idle
     - condition: state
       entity_id: timer.solar_guard
@@ -555,6 +555,37 @@
         message: >
           Solar charging GUARD: charger turned off on cable plug-in,
           waiting for surplus (solar_charging_enabled=on)
+        level: info
+
+# =============================================================================
+# Hysteresis: Start guard timer on ANY charger stop (including Tesla self-stop)
+# =============================================================================
+- id: solar_surplus_guard_on_any_stop
+  alias: "Solar Surplus - Guard on Any Charger Stop"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: switch.tesla_ble_charger
+      from: "on"
+      to: "off"
+  condition:
+    - condition: state
+      entity_id: input_boolean.solar_charging_enabled
+      state: "on"
+    # Only start guard if not already running (avoid resetting an active guard)
+    - condition: state
+      entity_id: timer.solar_guard
+      state: "idle"
+  action:
+    - service: timer.start
+      target:
+        entity_id: timer.solar_guard
+    - service: system_log.write
+      data:
+        message: >
+          Solar charging GUARD started on charger stop
+          (surplus={{ states('sensor.solar_surplus_power') }}W,
+          solarpower={{ states('sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated') }}W)
         level: info
 
 # =============================================================================

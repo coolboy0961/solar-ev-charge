@@ -81,6 +81,7 @@ views:
             secondary_info:
               entity: sensor.tesla_battery_energy
               decimals: 1
+              display_zero: false
         wh_decimals: 1
         kwh_decimals: 1
 

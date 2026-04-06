@@ -175,25 +175,40 @@ views:
                 width: 1
               fill:
                 opacity: 0.4
+              grid:
+                borderColor: '#444'
+                strokeDashArray: 0
+                xaxis:
+                  lines:
+                    show: true
+                yaxis:
+                  lines:
+                    show: true
               tooltip:
                 shared: true
+                intersect: false
+                x:
+                  format: "HH:mm"
             all_series_config:
               type: area
               curve: smooth
               stroke_width: 1
               extend_to: now
+              group_by:
+                func: avg
+                duration: 5min
               show:
                 legend_value: false
             series:
               - entity: sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated
                 name: Solar
-                color: '#c6a033'
+                color: '#ff9800'
               - entity: sensor.home_consumption_power
                 name: Home
-                color: '#a58fc2'
+                color: '#e1e1e1'
               - entity: sensor.tesla_charging_power_w
                 name: EV Charging
-                color: '#e07050'
+                color: '#e03030'
                 curve: stepline
               - entity: sensor.smart_meter_power
                 name: Grid
@@ -217,8 +232,20 @@ views:
                 width: 1
               fill:
                 opacity: 0.4
+              grid:
+                borderColor: '#444'
+                strokeDashArray: 0
+                xaxis:
+                  lines:
+                    show: true
+                yaxis:
+                  lines:
+                    show: true
               tooltip:
                 shared: true
+                intersect: false
+                x:
+                  format: "HH:mm"
             yaxis:
               - min: 0
                 max: 100
@@ -227,68 +254,18 @@ views:
               curve: smooth
               stroke_width: 1
               extend_to: now
+              group_by:
+                func: avg
+                duration: 5min
               show:
                 legend_value: false
             series:
-              - entity: sensor.tesla_ble_charge_level
-                name: Tesla
-                color: '#e07050'
               - entity: sensor.ep_cube_remaining_stored_electricity_3
                 name: EP Cube
-                color: '#488fc2'
-
-          # --- Charging Current (today from midnight) ---
-          - type: custom:apexcharts-card
-            header:
-              title: Charging Current (Today)
-              show: true
-            graph_span: 24h
-            span:
-              start: day
-            apex_config:
-              chart:
-                height: 250
-              legend:
-                show: true
-              stroke:
-                curve: smooth
-                width: 1
-              fill:
-                opacity: 0.4
-              tooltip:
-                shared: true
-            all_series_config:
-              type: area
-              curve: smooth
-              stroke_width: 1
-              extend_to: now
-              show:
-                legend_value: false
-            yaxis:
-              - min: 0
-            series:
-              - entity: sensor.tesla_actual_charging_current
-                name: Actual Current
-                color: '#e07050'
-              - entity: sensor.available_charging_amps
-                name: Available Amps
-                color: '#5faf6f'
-              - entity: sensor.power_limit_amps
-                name: Power Limit
-                type: line
-                color: '#a58fc2'
-                stroke_width: 1
-                stroke_dash: 4
-                show:
-                  legend_value: false
-              - entity: sensor.effective_target_amps
-                name: Target
-                type: line
-                color: '#c6a033'
-                stroke_width: 1
-                stroke_dash: 4
-                show:
-                  legend_value: false
+                color: '#4db6ac'
+              - entity: sensor.tesla_ble_charge_level
+                name: Tesla
+                color: '#e03030'
 
           # --- Device Energy Usage ---
           - type: energy-date-selection

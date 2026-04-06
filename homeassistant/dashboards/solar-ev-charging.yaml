@@ -231,6 +231,11 @@ views:
               apex_config:
                 chart:
                   height: 280
+                  zoom:
+                    enabled: true
+                    type: x
+                  toolbar:
+                    show: true
                 legend:
                   show: true
                 stroke:
@@ -305,6 +310,11 @@ views:
               apex_config:
                 chart:
                   height: 200
+                  zoom:
+                    enabled: true
+                    type: x
+                  toolbar:
+                    show: true
                 legend:
                   show: true
                 stroke:

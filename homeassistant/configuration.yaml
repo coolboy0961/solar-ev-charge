@@ -189,6 +189,16 @@ input_number:
     mode: slider
 
 # =============================================================
+# Solar Surplus EV Charging - Date Picker
+# =============================================================
+input_datetime:
+  history_date:
+    name: "History Date"
+    has_date: true
+    has_time: false
+    icon: mdi:calendar
+
+# =============================================================
 # Solar Surplus EV Charging - Timers
 # =============================================================
 timer:

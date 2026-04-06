@@ -158,120 +158,194 @@ views:
               padding: 8px;
             }
         cards:
-          # --- Power History (today from midnight) ---
-          - type: custom:apexcharts-card
-            header:
-              title: Power Flow (Today)
-              show: true
-            graph_span: 24h
-            span:
-              start: day
-            apex_config:
-              chart:
-                height: 280
-              legend:
-                show: true
-              stroke:
-                width: 1
-              fill:
-                opacity: 0.4
-              grid:
-                borderColor: '#444'
-                strokeDashArray: 0
-                xaxis:
-                  lines:
-                    show: true
-                yaxis:
-                  lines:
-                    show: true
-              tooltip:
-                shared: true
-                intersect: false
-                x:
-                  format: "HH:mm"
-            all_series_config:
-              type: area
-              curve: smooth
-              stroke_width: 1
-              extend_to: now
-              group_by:
-                func: avg
-                duration: 5min
-              show:
-                legend_value: false
-            series:
-              - entity: sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated
-                name: Solar
-                color: '#ff9800'
-              - entity: sensor.home_consumption_power
-                name: Home
-                color: '#e1e1e1'
-              - entity: sensor.tesla_charging_power_w
-                name: EV Charging
-                color: '#e03030'
-                curve: stepline
-              - entity: sensor.smart_meter_power
-                name: Grid
-                color: '#488fc2'
+          # --- Date Picker ---
+          - type: horizontal-stack
+            cards:
+              - type: button
+                name: 前日
+                icon: mdi:chevron-left
+                tap_action:
+                  action: perform-action
+                  perform_action: script.history_date_prev
+                show_state: false
+              - type: custom:config-template-card
+                variables:
+                  - >-
+                    (function() {
+                      var p = states['input_datetime.history_date'].state.split('-');
+                      return parseInt(p[1]) + '月' + parseInt(p[2]) + '日';
+                    })()
+                entities:
+                  - input_datetime.history_date
+                card:
+                  type: button
+                  entity: input_datetime.history_date
+                  name: ${vars[0]}
+                  icon: mdi:calendar
+                  tap_action:
+                    action: more-info
+                  show_name: true
+                  show_icon: true
+                  show_state: false
+              - type: button
+                name: 翌日
+                icon: mdi:chevron-right
+                tap_action:
+                  action: perform-action
+                  perform_action: script.history_date_next
+                show_state: false
+              - type: button
+                name: 今日
+                icon: mdi:calendar-today
+                tap_action:
+                  action: perform-action
+                  perform_action: script.history_date_today
+                show_state: false
 
-          # --- Battery Levels (today from midnight) ---
-          - type: custom:apexcharts-card
-            header:
-              title: Battery Levels (Today)
-              show: true
-            graph_span: 24h
-            span:
-              start: day
-            apex_config:
-              chart:
-                height: 200
-              legend:
+          # --- Power History ---
+          - type: custom:config-template-card
+            variables:
+              - states['input_datetime.history_date'].state
+              - >-
+                (function() {
+                  var p = states['input_datetime.history_date'].state.split('-');
+                  var sel = new Date(p[0], p[1] - 1, p[2]);
+                  var now = new Date();
+                  now.setHours(0,0,0,0);
+                  var diff = Math.round((sel - now) / 86400000);
+                  if (diff === 0) return '+0d';
+                  return (diff > 0 ? '+' : '') + diff + 'd';
+                })()
+            entities:
+              - input_datetime.history_date
+            card:
+              type: custom:apexcharts-card
+              header:
+                title: >-
+                  ${'Power Flow (' + vars[0] + ')'}
                 show: true
-              stroke:
+              graph_span: 24h
+              span:
+                start: day
+                offset: ${vars[1]}
+              apex_config:
+                chart:
+                  height: 280
+                legend:
+                  show: true
+                stroke:
+                  width: 1
+                fill:
+                  opacity: 0.4
+                grid:
+                  borderColor: '#444'
+                  strokeDashArray: 0
+                  xaxis:
+                    lines:
+                      show: true
+                  yaxis:
+                    lines:
+                      show: true
+                tooltip:
+                  shared: true
+                  intersect: false
+                  x:
+                    format: "HH:mm"
+              all_series_config:
+                type: area
                 curve: smooth
-                width: 1
-              fill:
-                opacity: 0.4
-              grid:
-                borderColor: '#444'
-                strokeDashArray: 0
-                xaxis:
-                  lines:
-                    show: true
-                yaxis:
-                  lines:
-                    show: true
-              tooltip:
-                shared: true
-                intersect: false
-                x:
-                  format: "HH:mm"
-            yaxis:
-              - min: 0
-                max: 100
-            all_series_config:
-              type: area
-              curve: smooth
-              stroke_width: 1
-              extend_to: now
-              group_by:
-                func: avg
-                duration: 5min
-              show:
-                legend_value: false
-            series:
-              - entity: sensor.ep_cube_remaining_stored_electricity_3
-                name: EP Cube
-                color: '#4db6ac'
-              - entity: sensor.tesla_ble_charge_level
-                name: Tesla
-                color: '#e03030'
+                stroke_width: 1
+                extend_to: now
+                group_by:
+                  func: avg
+                  duration: 5min
+                show:
+                  legend_value: false
+              series:
+                - entity: sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated
+                  name: Solar
+                  color: '#ff9800'
+                - entity: sensor.home_consumption_power
+                  name: Home
+                  color: '#e1e1e1'
+                - entity: sensor.tesla_charging_power_w
+                  name: EV Charging
+                  color: '#e03030'
+                  curve: stepline
+                - entity: sensor.smart_meter_power
+                  name: Grid
+                  color: '#488fc2'
 
-          # --- Device Energy Usage ---
-          - type: energy-date-selection
-          - type: energy-devices-detail-graph
-            title: Device Detail
-          - type: energy-devices-graph
+          # --- Battery Levels ---
+          - type: custom:config-template-card
+            variables:
+              - states['input_datetime.history_date'].state
+              - >-
+                (function() {
+                  var p = states['input_datetime.history_date'].state.split('-');
+                  var sel = new Date(p[0], p[1] - 1, p[2]);
+                  var now = new Date();
+                  now.setHours(0,0,0,0);
+                  var diff = Math.round((sel - now) / 86400000);
+                  if (diff === 0) return '+0d';
+                  return (diff > 0 ? '+' : '') + diff + 'd';
+                })()
+            entities:
+              - input_datetime.history_date
+            card:
+              type: custom:apexcharts-card
+              header:
+                title: >-
+                  ${'Battery Levels (' + vars[0] + ')'}
+                show: true
+              graph_span: 24h
+              span:
+                start: day
+                offset: ${vars[1]}
+              apex_config:
+                chart:
+                  height: 200
+                legend:
+                  show: true
+                stroke:
+                  curve: smooth
+                  width: 1
+                fill:
+                  opacity: 0.4
+                grid:
+                  borderColor: '#444'
+                  strokeDashArray: 0
+                  xaxis:
+                    lines:
+                      show: true
+                  yaxis:
+                    lines:
+                      show: true
+                tooltip:
+                  shared: true
+                  intersect: false
+                  x:
+                    format: "HH:mm"
+              yaxis:
+                - min: 0
+                  max: 100
+              all_series_config:
+                type: area
+                curve: smooth
+                stroke_width: 1
+                extend_to: now
+                group_by:
+                  func: avg
+                  duration: 5min
+                show:
+                  legend_value: false
+              series:
+                - entity: sensor.ep_cube_remaining_stored_electricity_3
+                  name: EP Cube
+                  color: '#4db6ac'
+                - entity: sensor.tesla_ble_charge_level
+                  name: Tesla
+                  color: '#e03030'
             title: Device Total
 
   # ==========================================================================

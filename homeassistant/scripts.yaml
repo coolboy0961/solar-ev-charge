@@ -1,0 +1,35 @@
+# =============================================================
+# History Date Navigation Scripts
+# =============================================================
+history_date_prev:
+  alias: "History Date Previous"
+  icon: mdi:chevron-left
+  sequence:
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.history_date
+      data:
+        date: >
+          {{ (states('input_datetime.history_date') | as_datetime - timedelta(days=1)).strftime('%Y-%m-%d') }}
+
+history_date_next:
+  alias: "History Date Next"
+  icon: mdi:chevron-right
+  sequence:
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.history_date
+      data:
+        date: >
+          {{ (states('input_datetime.history_date') | as_datetime + timedelta(days=1)).strftime('%Y-%m-%d') }}
+
+history_date_today:
+  alias: "History Date Today"
+  icon: mdi:calendar-today
+  sequence:
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.history_date
+      data:
+        date: >
+          {{ now().strftime('%Y-%m-%d') }}

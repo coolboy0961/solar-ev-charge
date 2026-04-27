@@ -215,7 +215,8 @@ ESP32の診断情報、タイマー状態、自動化ルールの管理。
 | **Stop on Grid Import** | 買電超過時の緊急停止 | surplus < -500W が 2分継続 |
 | **Charging Complete** | 充電完了通知 | 充電状態が "Complete" に変化 |
 | **Manual Disable** | 手動OFF時に充電停止 | Solar Charging を OFF |
-| **Cable Plugged Guard** | ケーブル接続時の自動OFF | charger ON 検出 + Solar ON + guard idle |
+| **Cable Plugged Init** | プラグ接続時に充電電流を 5A にプリセット | charge_flap off→on + Solar ON |
+| **Cable Plugged Guard** | 余剰不足時の自動OFF | charger ON 検出 + Solar ON + guard idle + 余剰<1200W |
 
 各自動化はトグルスイッチで個別に有効/無効を切り替えられる。
 通常は全てONのままにしておく。

@@ -523,6 +523,36 @@
         level: info
 
 # =============================================================================
+# Cable plugged in: Preset amps to 5A so Tesla self-start uses safe minimum
+# Prevents Tesla from auto-starting at its previous (high) amps which would
+# crash surplus and trigger cable_plugged_guard, killing the auto-start flow.
+# =============================================================================
+- id: solar_surplus_cable_plugged_init
+  alias: "Solar Surplus - Cable Plugged Init"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.tesla_ble_charge_flap
+      from: "off"
+      to: "on"
+  condition:
+    - condition: state
+      entity_id: input_boolean.solar_charging_enabled
+      state: "on"
+  action:
+    - service: number.set_value
+      target:
+        entity_id: number.tesla_ble_charging_amps
+      data:
+        value: 5
+    - service: system_log.write
+      data:
+        message: >
+          Solar charging INIT: cable plugged in,
+          amps preset to 5A (surplus={{ states('sensor.solar_surplus_power') }}W)
+        level: info
+
+# =============================================================================
 # Cable plugged in while solar mode: Turn off charger to wait for surplus
 # =============================================================================
 - id: solar_surplus_cable_plugged_guard

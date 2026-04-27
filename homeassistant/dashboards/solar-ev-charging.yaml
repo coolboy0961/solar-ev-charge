@@ -36,7 +36,7 @@ views:
           home:
             entity: sensor.home_consumption_power
             override_state: true
-            name: 家
+            name: Home
           individual:
             - entity: sensor.tesla_charging_power_w
               name: Tesla
@@ -58,7 +58,7 @@ views:
         entities:
           solar:
             entity: sensor.ep_cube_measured_cumulative_amount_of_electric_energy_generated
-            name: 太阳能
+            name: Solar
             icon: mdi:solar-power
             display_zero_state: true
           grid:
@@ -162,7 +162,7 @@ views:
           - type: horizontal-stack
             cards:
               - type: button
-                name: 前日
+                name: Prev
                 icon: mdi:chevron-left
                 tap_action:
                   action: perform-action
@@ -173,7 +173,8 @@ views:
                   - >-
                     (function() {
                       var p = states['input_datetime.history_date'].state.split('-');
-                      return parseInt(p[1]) + '月' + parseInt(p[2]) + '日';
+                      var m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                      return m[parseInt(p[1])-1] + ' ' + parseInt(p[2]);
                     })()
                 entities:
                   - input_datetime.history_date
@@ -188,14 +189,14 @@ views:
                   show_icon: true
                   show_state: false
               - type: button
-                name: 翌日
+                name: Next
                 icon: mdi:chevron-right
                 tap_action:
                   action: perform-action
                   perform_action: script.history_date_next
                 show_state: false
               - type: button
-                name: 今日
+                name: Today
                 icon: mdi:calendar-today
                 tap_action:
                   action: perform-action

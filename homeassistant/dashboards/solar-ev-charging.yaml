@@ -48,7 +48,7 @@ views:
                 unit_white_space: false
                 decimals: 0
                 display_zero: false
-        w_decimals: 1
+        base_decimals: 1
 
       # --- Energy Flow (daily kWh) ---
       - type: custom:energy-flow-card-plus
@@ -72,18 +72,18 @@ views:
             state_of_charge: sensor.ep_cube_remaining_stored_electricity_3
           home:
             override_state: true
-          individual1:
-            entity: sensor.tesla_ev_charging_energy
-            name: Tesla
-            icon: mdi:car-electric
-            display_zero: true
-            display_zero_state: true
-            secondary_info:
-              entity: sensor.tesla_battery_energy
-              decimals: 1
-              display_zero: false
-        wh_decimals: 1
-        kwh_decimals: 1
+          individual:
+            - entity: sensor.tesla_ev_charging_energy
+              name: Tesla
+              icon: mdi:car-electric
+              display_zero: true
+              display_zero_state: true
+              secondary_info:
+                entity: sensor.tesla_battery_energy
+                decimals: 1
+                display_zero: false
+        base_decimals: 1
+        kilo_decimals: 1
 
       - type: energy-date-selection
 

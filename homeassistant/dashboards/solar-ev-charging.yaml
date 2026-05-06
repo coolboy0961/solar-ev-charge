@@ -49,6 +49,7 @@ views:
                 decimals: 0
                 display_zero: false
         base_decimals: 1
+        kilo_threshold: 0
 
       # --- Energy Flow (daily kWh) ---
       - type: custom:energy-flow-card-plus
@@ -80,10 +81,12 @@ views:
               display_zero_state: true
               secondary_info:
                 entity: sensor.tesla_battery_energy
+                unit_of_measurement: kWh
                 decimals: 1
                 display_zero: false
         base_decimals: 1
         kilo_decimals: 1
+        kilo_threshold: 0
 
       - type: energy-date-selection
 
@@ -257,11 +260,20 @@ views:
                   intersect: false
                   x:
                     format: "HH:mm"
+              yaxis:
+                - decimals: 1
+                  apex_config:
+                    title:
+                      text: kW
+                    forceNiceScale: true
               all_series_config:
                 type: area
                 curve: smooth
                 stroke_width: 1
                 extend_to: now
+                unit: kW
+                float_precision: 2
+                transform: "return x / 1000;"
                 group_by:
                   func: avg
                   duration: 5min

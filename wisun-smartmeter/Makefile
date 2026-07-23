@@ -1,4 +1,4 @@
-PIO ?= $(shell command -v pio 2>/dev/null || echo /tmp/pio_env/bin/pio)
+PIO ?= $(shell command -v pio 2>/dev/null || echo $(HOME)/.platformio-venv/bin/pio)
 
 .PHONY: test build flash monitor monitor-log clean all
 

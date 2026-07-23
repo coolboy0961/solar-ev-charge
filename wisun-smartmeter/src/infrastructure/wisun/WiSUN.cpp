@@ -110,11 +110,26 @@ bool WiSUN::panaAuth() {
     delay(500);
 
     // MAC -> IPv6 link-local address
+    // SKLL64 returns the address on its own line. During reconnect an
+    // unsolicited "EVENT 21 FE80:... 01" (session teardown) can interleave
+    // and also contains "FE80", so scan line-by-line for the line that
+    // *starts* with FE80 instead of grabbing the first "FE80" occurrence —
+    // otherwise SKJOIN gets a malformed address and fails with ER05.
     String res = _modem.sendCommand("SKLL64 " + _macAddr, 3000);
-    int llIdx = res.indexOf("FE80");
-    if (llIdx < 0) return false;
-    _panaAddress = res.substring(llIdx, res.indexOf("\r", llIdx));
-    _panaAddress.trim();
+    delay(200);
+    while (_modem.serial().available()) res += (char)_modem.serial().read();
+
+    _panaAddress = "";
+    int pos = 0;
+    while (pos < (int)res.length()) {
+        int nl = res.indexOf('\n', pos);
+        if (nl < 0) nl = res.length();
+        String ln = res.substring(pos, nl);
+        ln.trim();
+        if (ln.startsWith("FE80")) { _panaAddress = ln; break; }
+        pos = nl + 1;
+    }
+    if (_panaAddress.length() == 0) return false;
     delay(500);
 
     // Start PANA authentication

@@ -51,9 +51,16 @@ void loop() {
 
     service.update(wisun.isConnected());
 
-    // Reconnect if ECHONET Lite responses are timing out consecutively
-    if (wisun.isConnected() && meter.session().isSessionLost()) {
-        display.showStatus(true, meter.getData(), publisher.isConnected(), "Reconnecting...");
+    // Reconnect when the PANA session is lost OR we are disconnected.
+    // Keep retrying (with a backoff) instead of latching into a permanently
+    // disconnected state that only a reboot could clear: reconnect() sets
+    // _connected=false up front, so gating on isConnected() would block all
+    // further attempts after the first failure.
+    static unsigned long lastReconnectAttempt = 0;
+    bool needsReconnect = meter.session().isSessionLost() || !wisun.isConnected();
+    if (needsReconnect && millis() - lastReconnectAttempt >= RECONNECT_BACKOFF) {
+        lastReconnectAttempt = millis();
+        display.showStatus(wisun.isConnected(), meter.getData(), publisher.isConnected(), "Reconnecting...");
         publisher.publish(meter.getData());  // publish last known data
         wisun.setLogger(nullptr);  // suppress display log during reconnect
         if (wisun.reconnect()) {

@@ -211,7 +211,7 @@ ESP32の診断情報、タイマー状態、自動化ルールの管理。
 | **Adjust Charging Amps** | メインの制御ループ | 30秒ごと |
 | **Start Charging (Enable Delay Expired)** | 遅延後の充電開始 | enable delay 満了 |
 | **Stop Charging (Disable Delay Expired)** | 遅延後の充電停止 | disable delay 満了 |
-| **Stop on Low Solar Production** | 低ソーラー時の停止 | solarpower < 800W が 3分継続 |
+| **Stop on Low Solar Production** | 低ソーラー時の停止 | solarpower < `sensor.solar_stop_threshold` が 3分継続 |
 | **Stop on Grid Import** | 買電超過時の緊急停止 | surplus < -500W が 2分継続 |
 | **Charging Complete** | 充電完了通知 | 充電状態が "Complete" に変化 |
 | **Manual Disable** | 手動OFF時に充電停止 | Solar Charging を OFF |

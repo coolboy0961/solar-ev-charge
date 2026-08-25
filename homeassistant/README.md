@@ -68,11 +68,14 @@ HA を再起動すると、サイドバーに「EV」(アイコン: `mdi:car-ele
 
 - **充電開始判定**: surplus（グリッドベース） → 正確な余剰測定
 - **充電停止/電流調整**: solarpower（ソーラー発電量） → EP Cube バッテリー補償による見かけ上の余剰を回避
+- **停止しきい値**: 実測ベース負荷から動的に算出 → 家庭消費が大きい時間帯に蓄電池を食い潰すのを防止
 
 ```
 surplus         = solar_surplus_power_avg (90秒移動平均)            (正=売電=余剰)
 solarpower      = ep_cube_measured_instantaneous_amount_of_electricity_generated
-solar_target    = clamp((solarpower - 400W) / 200V, 5A, 24A)
+base_load       = home_base_load_power_avg (5分移動平均)            (家庭消費 - EV充電)
+stop_threshold  = clamp(5A × 200V + base_load, 800W, 5000W)
+solar_target    = clamp((surplus + current_amps × 200V - 400W) / 200V, 5A, 24A)
 power_limit_amps = (power_limit - (home_consumption - ev_power)) / 200V  (0-24A)
 target          = max(min(solar_target, power_limit_amps), 5A)
 clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階的変更)
@@ -93,9 +96,9 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
   [充電中] choose 分岐 (上から順に評価、最初に一致した分岐のみ実行):
     0. POWER LIMIT: power_limit_enabled AND power_limit_amps < 5A
        → disable delay timer 開始 (5A でも制限超過 → 3分後停止)
-    1. REDUCE: solarpower < (current_amps × 200V + 400W) AND amps > 5A
+    1. REDUCE: solarpower < (stop_threshold + (current_amps - 5A) × 200V) AND amps > 5A
        → target A に変更 + stabilize 60秒 + reduce cooldown 90秒
-    2. LOW SOLAR: solarpower < 800W
+    2. LOW SOLAR: solarpower < stop_threshold
        → disable delay timer 開始 (idle の場合のみ)
     3. DEFAULT (十分な発電):
        → disable delay timer キャンセル (動作中の場合)
@@ -112,7 +115,7 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
                          + power_limit_amps >= 5A チェック
                          → 5A で充電開始 + guard timer (5分) + stabilize 1分
   [disable delay 満了] → 充電停止 + guard timer (5分)
-  [低ソーラー停止] solarpower < 800W が 3分継続 → 即停止 + guard
+  [低ソーラー停止] solarpower < stop_threshold が 3分継続 → 即停止 + guard
   [緊急停止] surplus < -500W が 2分継続 → 即停止 + guard + 通知
   [充電停止ガード] charger OFF 検出 → guard timer (5分) ※原因問わず
   [充電完了] charging_state = Complete → timer 全キャンセル + 通知
@@ -130,13 +133,16 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
 |-----------|------------|---------|
 | 充電開始閾値 (surplus) | 1200W | automations.yaml (main loop) |
 | 充電開始再チェック (surplus_avg) | 1200W | automations.yaml (enable delay expired) |
-| 充電停止判定 (solarpower) | 800W | automations.yaml (main loop + low solar) |
+| 充電停止判定 (solarpower) | stop_threshold (動的) | configuration.yaml (sensor.solar_stop_threshold) |
+| 停止しきい値 = 最小電流分 + ベース負荷 | 5A × 200V + base_load | configuration.yaml (solar_stop_threshold) |
+| 停止しきい値 クランプ範囲 | 800W 〜 5000W | configuration.yaml (solar_stop_threshold) |
+| ベース負荷 移動平均 | 5分 | configuration.yaml (home_base_load_power_avg) |
 | 開始電流 | 5A | automations.yaml |
-| Target 計算マージン (base_load) | 400W | automations.yaml |
+| Target 計算マージン (target_margin) | 400W | automations.yaml |
 | 1サイクルあたり最大変更幅 | ±2A | automations.yaml (max_step) |
 | 下方向デッドバンド | 3A | automations.yaml |
 | 緊急停止 (買電超過) | 500W × 2分 | automations.yaml |
-| 低ソーラー停止 | 800W × 3分 | automations.yaml |
+| 低ソーラー停止 | stop_threshold × 3分 | automations.yaml |
 | センサー鮮度チェック | 3分 | automations.yaml |
 | Enable delay | 1分 | configuration.yaml (timer) |
 | Disable delay | 3分 | configuration.yaml (timer) |
@@ -185,6 +191,9 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
 | `sensor.tesla_actual_charging_current` | 実充電電流 A | 充電中のみ電流値、停止時は 0 |
 | `sensor.tesla_charging_power_w` | 充電電力 W | `V × A` (state_class: measurement) |
 | `sensor.home_consumption_power` | 家庭消費 W | `solar - battery + grid` |
+| `sensor.home_base_load_power` | 家庭ベース負荷 W | `home_consumption - ev_power` (EV充電を除く) |
+| `sensor.home_base_load_power_avg` | 家庭ベース負荷 W (5分移動平均) | 停止しきい値の算出に使用 |
+| `sensor.solar_stop_threshold` | 充電停止しきい値 W | `clamp(5A×200V + base_load_avg, 800, 5000)` |
 | `sensor.ep_cube_battery_power_display` | バッテリー表示用 W | ECHONET Lite 値 × -1 (正=放電) |
 | `sensor.tesla_battery_energy` | Tesla バッテリー kWh | `charge_level% × 0.75` (75kWh 容量) |
 | `sensor.ep_cube_battery_energy` | EP Cube バッテリー kWh | `SOC% × 0.133` (13.3kWh 容量) |
@@ -236,7 +245,8 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
 ### 充電が停止しない (余剰が低下しているのに)
 - `timer.solar_disable_delay` が動作中か確認 (3分間のカウントダウン中)
 - `timer.solar_guard` が動作中か確認
-- `sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated` が 800W 未満か確認
+- `sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated` が `sensor.solar_stop_threshold` 未満か確認
+- `sensor.home_base_load_power_avg` が実態と合っているか確認 (ベース負荷が高いほど停止しきい値も上がり、早く停止する)
 
 ### 電力制限が効かない
 - `input_boolean.power_limit_enabled` が ON か確認

@@ -4,7 +4,7 @@
 #
 # Control flow:
 #   surplus >= 1200W for 1min → Start at 5A (enable delay)
-#   solarpower < 800W for 3min → Stop (disable delay)
+#   solarpower < (5A x 200V + measured base load) for 3min → Stop
 #   Guard timer: 5min minimum between ON/OFF transitions
 #   Stabilize timer: 60s after amp change, 1min after start
 #   Cable plugged in + solar mode ON → charger OFF (wait for surplus)
@@ -12,7 +12,10 @@
 #
 # Key concept: Hybrid approach
 #   Start: surplus (grid-based) — accurate real excess measurement
-#   Stop/adjust: solarpower — avoids EP Cube battery compensation masking deficit
+#   Stop/adjust: solarpower vs sensor.solar_stop_threshold — avoids EP Cube
+#     battery compensation masking deficit. The threshold tracks the measured
+#     house base load, so a 1.3kW summer base load no longer lets the car keep
+#     charging off the battery.
 
 # =============================================================================
 # Main Control Loop: Adjust charging amps based on surplus power (every 30s)
@@ -59,10 +62,14 @@
         is_charging: "{{ is_state('switch.tesla_ble_charger', 'on') }}"
         current_amps: "{{ states('number.tesla_ble_charging_amps') | int(0) }}"
         voltage: 200
-        base_load: 400
+        # Reserve headroom on the surplus-based target calc (surplus is already
+        # net of house load, so this is a margin — not the base load itself)
+        target_margin: 400
+        # Solar needed to sustain the 5A minimum on top of the measured base load
+        stop_threshold: "{{ states('sensor.solar_stop_threshold') | float(800) }}"
         power_limit_amps: "{{ states('sensor.power_limit_amps') | int(24) }}"
         power_limit_enabled: "{{ is_state('input_boolean.power_limit_enabled', 'on') }}"
-        solar_target: "{{ [[((surplus + current_amps * voltage - base_load) / voltage) | int, 5] | max, 24] | min }}"
+        solar_target: "{{ [[((surplus + current_amps * voltage - target_margin) / voltage) | int, 5] | max, 24] | min }}"
         target: "{{ [[solar_target | int, power_limit_amps] | min, 5] | max }}"
         max_step: 2
         clamped_target: "{{ [[target | int, current_amps - max_step] | max, current_amps + max_step] | min }}"
@@ -115,10 +122,14 @@
                               (power_limit_amps={{ power_limit_amps }}, home_consumption={{ states('sensor.home_consumption_power') }}W)
                             level: warning
 
-                # REDUCE: solar can't cover current charging + base load
+                # REDUCE: solar can't cover current charging + measured base load
+                # Same formula as stop_threshold, shifted by the amps above the
+                # 5A floor — so charging steps 10A→7A→5A before it stops
                 - conditions:
                     - condition: template
-                      value_template: "{{ solarpower < (current_amps * voltage + base_load) and current_amps > 5 }}"
+                      value_template: >
+                        {{ solarpower < (stop_threshold + (current_amps - 5) * voltage)
+                           and current_amps > 5 }}
                   sequence:
                     - service: number.set_value
                       target:
@@ -135,15 +146,17 @@
                         entity_id: timer.solar_reduce_cooldown
                     - service: system_log.write
                       data:
-                        message: "Solar charging REDUCE: {{ current_amps }}A → {{ clamped_target }}A (target={{ target }}A, solarpower={{ solarpower }}W)"
+                        message: >
+                          Solar charging REDUCE: {{ current_amps }}A → {{ clamped_target }}A
+                          (target={{ target }}A, solarpower={{ solarpower }}W,
+                          need={{ (stop_threshold + (current_amps - 5) * voltage) | round(0) }}W)
                         level: info
 
                 # LOW SOLAR: Start disable delay timer
                 # Direct solar check (catches battery compensation by EP Cube)
                 - conditions:
                     - condition: template
-                      value_template: >
-                        {{ states('sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated') | float(0) < 800 }}
+                      value_template: "{{ solarpower < stop_threshold }}"
                   sequence:
                     - if:
                         - condition: state
@@ -155,7 +168,9 @@
                             entity_id: timer.solar_disable_delay
                         - service: system_log.write
                           data:
-                            message: "Solar charging disable delay started (solarpower={{ solarpower }}W)"
+                            message: >
+                              Solar charging disable delay started
+                              (solarpower={{ solarpower }}W < threshold={{ stop_threshold | round(0) }}W)
                             level: info
 
               # DEFAULT: Sufficient surplus, cancel disable timer and adjust amps
@@ -170,7 +185,9 @@
                         entity_id: timer.solar_disable_delay
                     - service: system_log.write
                       data:
-                        message: "Solar charging disable delay cancelled (solarpower={{ solarpower }}W)"
+                        message: >
+                          Solar charging disable delay cancelled
+                          (solarpower={{ solarpower }}W >= threshold={{ stop_threshold | round(0) }}W)
                         level: info
                 # Ramp UP: step toward target (blocked during reduce cooldown)
                 - if:
@@ -360,7 +377,7 @@
   trigger:
     - platform: numeric_state
       entity_id: sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated
-      below: 800
+      below: sensor.solar_stop_threshold
       for:
         minutes: 3
   condition:
@@ -387,7 +404,9 @@
       data:
         message: >
           Solar charging STOPPED - low solar production
-          (solarpower={{ states('sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated') }}W < 800W for 3min)
+          (solarpower={{ states('sensor.ep_cube_measured_instantaneous_amount_of_electricity_generated') }}W
+          < threshold={{ states('sensor.solar_stop_threshold') }}W for 3min,
+          base_load={{ states('sensor.home_base_load_power_avg') }}W)
         level: warning
 
 # =============================================================================

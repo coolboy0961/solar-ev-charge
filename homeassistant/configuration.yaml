@@ -83,6 +83,38 @@ template:
           {{ states('sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy') | is_number
              and states('sensor.smart_meter_power') | is_number }}
 
+      # Home base load (house consumption excluding EV charging)
+      - name: "Home Base Load Power"
+        unique_id: home_base_load_power
+        unit_of_measurement: "W"
+        device_class: power
+        state: >
+          {% set total = states('sensor.home_consumption_power') | float(0) %}
+          {% set ev = states('sensor.tesla_charging_power_w') | float(0) %}
+          {{ [total - ev, 0] | max | round(0) }}
+        availability: >
+          {{ states('sensor.home_consumption_power') | is_number }}
+
+      # Dynamic stop threshold: solar needed to run the 5A minimum on top of the
+      # house base load. Replaces the old fixed 800W, which assumed a ~400W base
+      # load — with a real 1.3kW summer base load the car kept charging off the
+      # EP Cube battery instead of solar.
+      # Clamped to [800, 5000]: 800W keeps the old floor so this is never less
+      # strict than before; 5000W stays under the 5.75kW array so a bad
+      # home_consumption_power reading can't lock charging out permanently.
+      - name: "Solar Stop Threshold"
+        unique_id: solar_stop_threshold
+        unit_of_measurement: "W"
+        device_class: power
+        state: >
+          {% set base = states('sensor.home_base_load_power_avg')
+                        | float(states('sensor.home_base_load_power') | float(400)) %}
+          {% set min_amps = 5 %}
+          {% set voltage = 200 %}
+          {{ [[(min_amps * voltage + base) | round(0), 800] | max, 5000] | min }}
+        availability: >
+          {{ states('sensor.home_base_load_power') | is_number }}
+
       # Battery power for dashboard display (inverted ECHONET Lite sign)
       # ECHONET Lite: negative=discharge, positive=charge
       # Dashboard (power-flow-card-plus): positive=discharge, negative=charge
@@ -243,6 +275,16 @@ sensor:
     filters:
       - filter: time_simple_moving_average
         window_size: "00:01:30"
+
+  # Smoothed base load (5min moving average — rides out AC compressor cycling
+  # and appliance spikes so the stop threshold doesn't jump around)
+  - platform: filter
+    name: "Home Base Load Power Avg"
+    unique_id: home_base_load_power_avg
+    entity_id: sensor.home_base_load_power
+    filters:
+      - filter: time_simple_moving_average
+        window_size: "00:05:00"
 
 # =============================================================
 # Dashboard (YAML mode)

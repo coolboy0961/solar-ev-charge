@@ -381,6 +381,11 @@
       for:
         minutes: 3
   condition:
+    # Only act in solar mode — when the user has turned Solar Charging off and
+    # is charging manually (e.g. from the EP Cube battery), leave it alone.
+    - condition: state
+      entity_id: input_boolean.solar_charging_enabled
+      state: "on"
     - condition: state
       entity_id: switch.tesla_ble_charger
       state: "on"
@@ -422,6 +427,11 @@
       for:
         minutes: 2
   condition:
+    # Only act in solar mode — when the user has turned Solar Charging off and
+    # is charging manually (e.g. from the EP Cube battery), leave it alone.
+    - condition: state
+      entity_id: input_boolean.solar_charging_enabled
+      state: "on"
     - condition: state
       entity_id: switch.tesla_ble_charger
       state: "on"

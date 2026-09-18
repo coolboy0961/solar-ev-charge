@@ -115,8 +115,8 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
                          + power_limit_amps >= 5A チェック
                          → 5A で充電開始 + guard timer (5分) + stabilize 1分
   [disable delay 満了] → 充電停止 + guard timer (5分)
-  [低ソーラー停止] solarpower < stop_threshold が 3分継続 → 即停止 + guard
-  [緊急停止] surplus < -500W が 2分継続 → 即停止 + guard + 通知
+  [低ソーラー停止] solarpower < stop_threshold が 3分継続 → 即停止 + guard ※Solar Charging ON 時のみ
+  [緊急停止] surplus < -500W が 2分継続 → 即停止 + guard + 通知 ※Solar Charging ON 時のみ
   [充電停止ガード] charger OFF 検出 → guard timer (5分) ※原因問わず
   [充電完了] charging_state = Complete → timer 全キャンセル + 通知
   [手動OFF] Solar Charging OFF → 充電停止 + 全 timer cancel
@@ -141,8 +141,8 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
 | Target 計算マージン (target_margin) | 400W | automations.yaml |
 | 1サイクルあたり最大変更幅 | ±2A | automations.yaml (max_step) |
 | 下方向デッドバンド | 3A | automations.yaml |
-| 緊急停止 (買電超過) | 500W × 2分 | automations.yaml |
-| 低ソーラー停止 | stop_threshold × 3分 | automations.yaml |
+| 緊急停止 (買電超過) | 500W × 2分 (Solar Charging ON 時のみ) | automations.yaml |
+| 低ソーラー停止 | stop_threshold × 3分 (Solar Charging ON 時のみ) | automations.yaml |
 | センサー鮮度チェック | 3分 | automations.yaml |
 | Enable delay | 1分 | configuration.yaml (timer) |
 | Disable delay | 3分 | configuration.yaml (timer) |

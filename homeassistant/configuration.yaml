@@ -129,15 +129,30 @@ template:
           {{ states('sensor.ep_cube_measured_instantaneous_charging_discharging_electric_energy') | is_number }}
 
       # Charging power in W (V×A calculation — tesla_ble_charge_power is integer-only)
+      #
+      # This is NOT gated on charging_state: an awake, plugged-in Tesla really
+      # does pull ~400-700W from the wall for its own overhead (measured
+      # 2026-08-26: cabin overheat protection drew ~470W for 7.5h). That draw is
+      # genuine EV load and must stay subtracted from home_base_load_power,
+      # otherwise the stop threshold ends up ~470W too high.
+      #
+      # It IS gated on asleep: when the car sleeps, ESPHome stops receiving BLE
+      # updates and charge_current freezes at its last non-zero value forever,
+      # which would understate the base load (and the stop threshold) by that
+      # much. A sleeping Tesla draws essentially nothing, so report 0.
       - name: "Tesla Charging Power W"
         unique_id: tesla_charging_power_w
         unit_of_measurement: "W"
         device_class: power
         state_class: measurement
         state: >
-          {% set v = states('sensor.tesla_ble_charge_voltage') | float(0) %}
-          {% set a = states('sensor.tesla_ble_charge_current') | float(0) %}
-          {{ (v * a) | round(0) }}
+          {% if is_state('binary_sensor.tesla_ble_asleep', 'on') %}
+            0
+          {% else %}
+            {% set v = states('sensor.tesla_ble_charge_voltage') | float(0) %}
+            {% set a = states('sensor.tesla_ble_charge_current') | float(0) %}
+            {{ (v * a) | round(0) }}
+          {% endif %}
 
       # Tesla battery energy (kWh) from percentage
       - name: "Tesla Battery Energy"

@@ -189,9 +189,9 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
 | `sensor.solar_total_available_power` | 総利用可能電力 W | `surplus + charging_power_w` |
 | `sensor.available_charging_amps` | 利用可能充電電流 A | `(total_available - 400) ÷ 200V` (5-24A) |
 | `sensor.tesla_actual_charging_current` | 実充電電流 A | 充電中のみ電流値、停止時は 0 |
-| `sensor.tesla_charging_power_w` | 充電電力 W | `V × A` (state_class: measurement) |
+| `sensor.tesla_charging_power_w` | 充電電力 W | `V × A`、ただし `asleep` が on なら 0 (BLE凍結対策) |
 | `sensor.home_consumption_power` | 家庭消費 W | `solar - battery + grid` |
-| `sensor.home_base_load_power` | 家庭ベース負荷 W | `home_consumption - ev_power` (EV充電を除く) |
+| `sensor.home_base_load_power` | 家庭ベース負荷 W | `home_consumption - ev_power` (車の引き込みを除く) |
 | `sensor.home_base_load_power_avg` | 家庭ベース負荷 W (5分移動平均) | 停止しきい値の算出に使用 |
 | `sensor.solar_stop_threshold` | 充電停止しきい値 W | `clamp(5A×200V + base_load_avg, 800, 5000)` |
 | `sensor.ep_cube_battery_power_display` | バッテリー表示用 W | ECHONET Lite 値 × -1 (正=放電) |
@@ -200,6 +200,20 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
 | `sensor.power_limit_amps` | 電力制限による最大充電電流 A | `(power_limit - non_ev_load) ÷ 200V` (0-24A) |
 | `sensor.effective_target_amps` | 最終目標電流 A | `min(available_amps, power_limit_amps)` |
 | `binary_sensor.solar_surplus_charging_available` | 充電条件成立 | 余剰>=1200W & プラグ接続 & バッテリー<上限 |
+
+#### 起床中のテスラは充電していなくても電気を引く
+
+ケーブル接続中に車が起きていると、充電していなくても車載機器のために壁から
+400〜700W 程度を引きます (実測 2026-08-26: キャビンオーバーヒートプロテクションで
+約470W を7時間半、合計約5kWh)。
+
+これは実在する EV 負荷なので `tesla_charging_power_w` は充電状態でガードしません。
+ガードしてしまうとその分が `home_base_load_power` に混入し、停止しきい値が
+約470W 高くなって充電が早く止まりすぎます。
+
+一方で車が就寝すると ESPHome への BLE 更新が止まり、`charge_current` が
+最後の非ゼロ値のまま凍結します。寝ている車はほとんど電気を引かないので、
+`asleep` が on の間は 0 を返してこれを防ぎます。
 
 ### Riemann 積分センサー
 

@@ -70,6 +70,23 @@ fi
 NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
 echo "Version bump: ${LAST_TAG:-none} → $NEW_TAG"
 
+# --- Format one changelog entry: subject + "- " bullets from the commit body ---
+# The subject alone hides everything when a commit bundles several changes, so
+# body bullets become sub-items. Indented continuation lines are joined onto
+# their bullet; trailers (Co-Authored-By etc.) and prose paragraphs are skipped.
+format_entry() {
+    local hash="$1" msg="$2" clean_msg prefix details
+    clean_msg=$(echo "$msg" | sed 's/^[a-z]*(\([^)]*\)): /\1: /' | sed 's/^[a-z]*: //')
+    prefix=$(echo "$msg" | grep -o '^[a-z]*' || echo "other")
+    details=$(git log -1 --format=%b "$hash" | awk '
+        /^- / { if (item != "") print item; item = substr($0, 3); next }
+        /^[ \t]+[^ \t]/ && item != "" { sub(/^[ \t]+/, ""); item = item " " $0; next }
+        { if (item != "") print item; item = "" }
+        END { if (item != "") print item }
+    ' | while IFS= read -r detail; do printf '\\n  - %s' "$detail"; done)
+    printf '\\n- **%s**: %s%s' "$prefix" "$clean_msg" "$details"
+}
+
 # --- Generate changelog grouped by module ---
 MODULES=("wisun-smartmeter" "homeassistant" "esphome" "docker" "docs")
 MODULE_LABELS=("Wi-SUN Smart Meter" "Home Assistant" "ESPHome" "Docker" "Documentation")
@@ -90,10 +107,7 @@ for i in "${!MODULES[@]}"; do
         # Check if commit touches this module
         files=$(git diff-tree --no-commit-id --name-only -r "$hash" 2>/dev/null || true)
         if echo "$files" | grep -q "^${module}/"; then
-            # Clean up commit message for display
-            clean_msg=$(echo "$msg" | sed 's/^[a-z]*(\([^)]*\)): /\1: /' | sed 's/^[a-z]*: //')
-            prefix=$(echo "$msg" | grep -o '^[a-z]*' || echo "other")
-            section="${section}\n- **${prefix}**: ${clean_msg}"
+            section="${section}$(format_entry "$hash" "$msg")"
         fi
     done <<< "$COMMITS"
 
@@ -118,9 +132,7 @@ while IFS= read -r line; do
     done
 
     if ! $matched; then
-        clean_msg=$(echo "$msg" | sed 's/^[a-z]*(\([^)]*\)): /\1: /' | sed 's/^[a-z]*: //')
-        prefix=$(echo "$msg" | grep -o '^[a-z]*' || echo "other")
-        OTHER_CHANGES="${OTHER_CHANGES}\n- **${prefix}**: ${clean_msg}"
+        OTHER_CHANGES="${OTHER_CHANGES}$(format_entry "$hash" "$msg")"
     fi
 done <<< "$COMMITS"
 

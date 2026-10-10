@@ -244,6 +244,11 @@
                     - condition: state
                       entity_id: timer.solar_guard
                       state: "idle"
+                    # Power limit must allow at least 5A (same check as the start
+                    # automation) — otherwise the enable delay would just loop.
+                    # The blocked state is reported by solar_surplus_power_limit_blocked.
+                    - condition: template
+                      value_template: "{{ not power_limit_enabled or power_limit_amps >= 5 }}"
                   sequence:
                     - if:
                         - condition: state
@@ -463,6 +468,67 @@
           Solar charging EMERGENCY STOP
           (surplus={{ states('sensor.solar_surplus_power') }}W for 2min)
         level: warning
+
+# =============================================================================
+# Notification: Start blocked by power limit
+# Surplus is enough to start, but the power limit leaves < 5A for the EV, so
+# charging silently never starts. Notify once, and dismiss once the limit no
+# longer blocks (or solar mode is turned off).
+# =============================================================================
+- id: solar_surplus_power_limit_blocked
+  alias: "Solar Surplus - Start Blocked by Power Limit"
+  mode: single
+  trigger:
+    - platform: template
+      id: blocked
+      value_template: >
+        {{ is_state('input_boolean.solar_charging_enabled', 'on')
+           and is_state('binary_sensor.tesla_ble_charge_flap', 'on')
+           and is_state('switch.tesla_ble_charger', 'off')
+           and states('sensor.tesla_ble_charge_level') | float(100)
+               < states('number.tesla_ble_charging_limit') | float(80)
+           and states('sensor.solar_surplus_power_avg') | float(0) >= 1200
+           and is_state('input_boolean.power_limit_enabled', 'on')
+           and states('sensor.power_limit_amps') | int(24) < 5 }}
+      for:
+        minutes: 1
+    - platform: template
+      id: resolved
+      value_template: >
+        {{ is_state('input_boolean.solar_charging_enabled', 'off')
+           or is_state('input_boolean.power_limit_enabled', 'off')
+           or states('sensor.power_limit_amps') | int(24) >= 5 }}
+  action:
+    - choose:
+        - conditions:
+            - condition: trigger
+              id: blocked
+          sequence:
+            - service: persistent_notification.create
+              data:
+                notification_id: solar_power_limit_blocked
+                title: "Solar Charging Blocked by Power Limit"
+                message: >
+                  Surplus is {{ states('sensor.solar_surplus_power_avg') | round(0) }}W,
+                  but the power limit {{ states('input_number.power_limit_watts') | round(0) }}W
+                  leaves only {{ states('sensor.power_limit_amps') }}A for the EV (minimum 5A).
+                  Raise Limit (W) or turn Power Limit off to start charging.
+            - service: system_log.write
+              data:
+                message: >
+                  Solar charging START BLOCKED by power limit
+                  (surplus_avg={{ states('sensor.solar_surplus_power_avg') }}W,
+                  power_limit={{ states('input_number.power_limit_watts') }}W,
+                  power_limit_amps={{ states('sensor.power_limit_amps') }}A,
+                  home_consumption={{ states('sensor.home_consumption_power') }}W)
+                level: warning
+        - conditions:
+            - condition: trigger
+              id: resolved
+          sequence:
+            - service: persistent_notification.dismiss
+              data:
+                notification_id: solar_power_limit_blocked
 
 # =============================================================================
 # Notification: Charging complete

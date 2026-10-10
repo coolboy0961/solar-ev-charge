@@ -223,13 +223,15 @@ input_boolean:
     name: "Power Limit Enabled"
     icon: mdi:speedometer
 
-# Home power limit (W)
+# Home power limit (W) — keeps total load under the 60A (6kW) contract breaker.
+# min 4000W: an accidental slide to the far left must still leave >= 5A for the EV
+# max 6000W: anything above the contract no longer protects the breaker
 input_number:
   power_limit_watts:
     name: "Home Power Limit"
     initial: 5000
-    min: 1000
-    max: 10000
+    min: 4000
+    max: 6000
     step: 500
     unit_of_measurement: "W"
     icon: mdi:flash-alert

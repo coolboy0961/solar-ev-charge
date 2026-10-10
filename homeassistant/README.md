@@ -107,7 +107,8 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
        ※ 電力制限がアクティブ制約の場合、デッドバンドなしで即減
 
   [非充電]
-    IF surplus >= 1200W → enable delay timer 開始 (idle の場合のみ)
+    IF surplus >= 1200W AND guard idle AND (電力制限 OFF OR power_limit_amps >= 5A)
+      → enable delay timer 開始 (idle の場合のみ)
     ELSE → enable delay timer キャンセル
 
 別オートメーション:
@@ -117,6 +118,9 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
   [disable delay 満了] → 充電停止 + guard timer (5分)
   [低ソーラー停止] solarpower < stop_threshold が 3分継続 → 即停止 + guard ※Solar Charging ON 時のみ
   [緊急停止] surplus < -500W が 2分継続 → 即停止 + guard + 通知 ※Solar Charging ON 時のみ
+  [電力制限で開始ブロック] 開始条件を満たすのに power_limit_amps < 5A が 1分継続
+                         → 通知 (solar_power_limit_blocked) + warning ログ
+                         → 制限解除 (OFF / 5A 以上) または Solar Charging OFF で通知を自動削除
   [充電停止ガード] charger OFF 検出 → guard timer (5分) ※原因問わず
   [充電完了] charging_state = Complete → timer 全キャンセル + 通知
   [手動OFF] Solar Charging OFF → 充電停止 + 全 timer cancel
@@ -151,7 +155,7 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
 | 最小/最大電流 | 5A / 24A | automations.yaml |
 | 電圧 (計算用) | 200V | automations.yaml |
 | 制御ループ間隔 | 30秒 | automations.yaml |
-| 電力制限 | 5000W (1000-10000W) | configuration.yaml (input_number) |
+| 電力制限 | 5000W (4000-6000W, 60A 契約のブレーカー保護用) | configuration.yaml (input_number) |
 
 ### チューニングガイド
 
@@ -255,6 +259,7 @@ clamped_target  = clamp(target, current_amps - 2A, current_amps + 2A)  (段階�
 - `sensor.solar_surplus_power` が 1200W 以上か確認 (1分間継続が必要)
 - `sensor.tesla_ble_charge_level` が `number.tesla_ble_charging_limit` 未満か確認
 - `timer.solar_guard` が `idle` か確認 (前回の ON/OFF 後 5分間はブロック)
+- 「Solar Charging Blocked by Power Limit」通知が出ていないか確認。電力制限 ON で `sensor.power_limit_amps` が 5A 未満だと開始しない (`input_number.power_limit_watts` がベース負荷 + 1000W 未満だと常にブロック)
 
 ### 充電が停止しない (余剰が低下しているのに)
 - `timer.solar_disable_delay` が動作中か確認 (3分間のカウントダウン中)
